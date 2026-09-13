@@ -1,0 +1,1421 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tanteo</title>
+<meta name="description" content="Marcador y récords de tus juegos de mesa">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tanteo">
+<meta name="theme-color" content="#2f6f52">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg:#ffffff;
+  --surface:#ffffff;
+  --surface-2:#eceee6;
+  --border:#dcdfd5;
+  --text:#1b1f1c;
+  --text-muted:#6b7268;
+  --accent:#2f6f52;
+  --accent-strong:#1f5b40;
+  --accent-soft:#e3ede7;
+  --gold:#b9791f;
+  --gold-soft:#f6e9d2;
+  --danger:#a8434a;
+  --danger-soft:#f6dede;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(20,25,20,.05), 0 6px 18px rgba(20,25,20,.06);
+  --font-display:'Bricolage Grotesque','Segoe UI',sans-serif;
+  --font-body:'IBM Plex Sans','Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono','SFMono-Regular',monospace;
+  color-scheme: light;
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+}
+.app{
+  max-width:640px;
+  margin:0 auto;
+  padding:16px 16px 48px;
+  min-height:100vh;
+}
+h1,h2,h3{font-family:var(--font-display); margin:0; text-wrap:balance;}
+button{font-family:inherit;}
+.tabular{font-variant-numeric:tabular-nums;}
+
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:6px 2px 18px;
+}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand-badge{
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:46px; height:46px; border-radius:13px;
+  background:linear-gradient(140deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow:0 4px 10px rgba(31,91,64,.32), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.brand-icon{font-size:24px; line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));}
+.brand h1{
+  font-size:27px; font-weight:700; letter-spacing:-.02em; line-height:1.05;
+  background:linear-gradient(100deg, var(--accent-strong) 15%, var(--gold) 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:var(--accent-strong);
+}
+.brand small{display:block; color:var(--text-muted); font-size:12px; margin-top:2px; font-weight:500;}
+.tabs{display:flex; background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:3px; gap:2px;}
+.tab{
+  border:none; background:transparent; color:var(--text-muted); font-weight:600; font-size:13px;
+  padding:8px 14px; border-radius:999px; cursor:pointer;
+}
+.tab.active{background:var(--accent); color:#fff;}
+
+.storage-banner{
+  background:var(--gold-soft); color:var(--text); border:1px solid var(--gold);
+  border-radius:var(--radius); padding:10px 14px; font-size:13px; margin-bottom:14px;
+}
+
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:16px;
+}
+.section{margin-bottom:18px;}
+.section-title{font-size:13px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin:0 0 8px;}
+.muted{color:var(--text-muted);}
+.hint{color:var(--text-muted); font-size:12.5px; margin-top:6px;}
+
+.chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+.chip{
+  display:inline-flex; align-items:center; gap:6px; padding:9px 13px; border-radius:999px;
+  border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-size:14px; font-weight:500;
+  cursor:pointer; min-height:40px;
+}
+.chip .ic{font-size:16px;}
+.chip.selected{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); font-weight:600;}
+.chip.new{border-style:dashed; color:var(--text-muted);}
+.chip .edit-pencil{opacity:.55; margin-left:2px; font-size:12px;}
+.chip.selected .edit-pencil{opacity:.8;}
+
+.order-list{list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.order-item{display:flex; align-items:center; gap:8px; background:var(--surface-2); border-radius:10px; padding:8px 10px; font-size:14px;}
+.order-item .idx{color:var(--text-muted); font-size:12px; width:16px;}
+.order-item .name{flex:1; font-weight:500;}
+.order-item button{border:none; background:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:4px 6px;}
+.order-item button:hover{color:var(--text);}
+
+.winmode-row{display:flex; gap:8px; margin-top:8px;}
+.winmode-opt{flex:1; text-align:center; padding:8px 6px; border-radius:10px; border:1.5px solid var(--border); font-size:12.5px; cursor:pointer; color:var(--text-muted);}
+.winmode-opt.active{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); font-weight:600;}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  border-radius:12px; border:1.5px solid var(--border); background:var(--surface); color:var(--text);
+  font-weight:600; font-size:14px; padding:12px 16px; cursor:pointer; min-height:46px;
+}
+.btn:disabled{opacity:.45; cursor:not-allowed;}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+.btn.gold{background:var(--gold); border-color:var(--gold); color:#fff;}
+.btn.danger{background:transparent; border-color:var(--danger); color:var(--danger);}
+.btn.ghost{background:transparent; border-color:transparent; color:var(--text-muted); padding:8px 10px; min-height:auto;}
+.btn.block{width:100%;}
+.btn.small{padding:8px 12px; min-height:36px; font-size:13px;}
+
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:12.5px; font-weight:600; color:var(--text-muted); margin-bottom:5px;}
+.field input[type="text"], .field input[type="number"], .field input[type="date"], .field select{
+  width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-size:15px;
+}
+.field input:focus-visible, .field select:focus-visible, .btn:focus-visible, .chip:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+
+.emoji-grid{display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin-top:4px;}
+.emoji-opt{border:1.5px solid var(--border); background:var(--surface); border-radius:9px; font-size:19px; padding:6px 0; cursor:pointer;}
+.emoji-opt.selected{border-color:var(--accent); background:var(--accent-soft);}
+
+.turn-card{
+  background:linear-gradient(160deg, var(--accent-soft), var(--surface)); border:1.5px solid var(--accent);
+  border-radius:var(--radius); padding:16px; text-align:center; margin-bottom:14px;
+}
+.turn-card .round{font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600;}
+.turn-card .who{font-family:var(--font-display); font-size:24px; font-weight:700; margin-top:4px;}
+
+.target-banner{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:var(--gold-soft); border:1.5px solid var(--gold); border-radius:var(--radius);
+  padding:12px 14px; margin-bottom:14px; font-size:13.5px;
+}
+
+.rank-strip{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+.rank-row{display:flex; align-items:center; gap:8px; background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:8px 12px; font-size:14px;}
+.rank-row .pos{font-family:var(--font-mono); font-weight:700; color:var(--text-muted); width:24px;}
+.rank-row .ic{font-size:16px;}
+.rank-row .name{flex:1; font-weight:500; font-size:15.5px;}
+.rank-row .pts{font-family:var(--font-mono); font-weight:700;}
+.rank-row.lead{border-color:var(--gold); background:var(--gold-soft);}
+.rank-row.lead .pos{color:var(--gold);}
+
+.keypad-display{
+  font-family:var(--font-mono); font-size:34px; text-align:center; padding:14px 10px; border-radius:12px;
+  background:var(--surface-2); border:1.5px solid var(--border); margin-bottom:10px; min-height:64px;
+  display:flex; align-items:center; justify-content:center;
+}
+.keypad-display .ph{color:var(--text-muted);}
+.keypad{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px;}
+.key{
+  border:1.5px solid var(--border); background:var(--surface); border-radius:12px; font-size:20px; font-weight:600;
+  padding:14px 0; cursor:pointer; font-family:var(--font-mono);
+}
+.key:active{background:var(--accent-soft);}
+.key.fn{color:var(--text-muted); font-size:16px;}
+.keypad-actions{display:flex; gap:8px; margin-bottom:18px;}
+.keypad-actions .btn.back{flex:0 0 34%;}
+.keypad-actions .btn.save{flex:1;}
+
+.score-table-wrap{overflow-x:auto; margin-bottom:6px;}
+table.score-table{border-collapse:collapse; width:100%; min-width:100%; font-size:13.5px;}
+table.score-table th, table.score-table td{padding:8px 10px; text-align:center; border-bottom:1px solid var(--border); white-space:nowrap;}
+table.score-table th{font-weight:600; color:var(--text-muted); font-size:12px;}
+table.score-table th:first-child, table.score-table td:first-child{text-align:left; color:var(--text-muted); font-size:12px; position:sticky; left:0; background:var(--surface);}
+table.score-table td.cell{font-family:var(--font-mono); cursor:pointer;}
+table.score-table td.cell.empty{color:var(--text-muted); opacity:.4; cursor:default;}
+table.score-table td.cell.current{background:var(--accent-soft); border-radius:8px; box-shadow:inset 0 0 0 1.5px var(--accent); font-weight:700;}
+table.score-table tr.total td{border-top:2px solid var(--text); border-bottom:none; font-weight:700; font-family:var(--font-mono); padding-top:10px;}
+
+.match-header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;}
+.match-header .who{display:flex; align-items:center; gap:8px;}
+.match-header .ic{font-size:26px;}
+.match-header .actions{display:flex; gap:6px;}
+
+.game-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
+.game-card{cursor:pointer; text-align:left;}
+.game-card .ic{font-size:30px; display:block; margin-bottom:6px;}
+.game-card .name{font-weight:700; font-size:15px;}
+.game-card .stat{font-size:12px; color:var(--text-muted); margin-top:4px;}
+.game-card .top{font-size:12px; margin-top:6px; color:var(--gold); font-weight:600;}
+.empty-state{text-align:center; color:var(--text-muted); padding:30px 10px; font-size:14px;}
+
+.back-row{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+.back-row .ic{font-size:30px;}
+
+.record-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:4px;}
+.record-tile{text-align:center;}
+.record-tile .lbl{font-size:11.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-weight:600;}
+.record-tile .val{font-family:var(--font-mono); font-size:26px; font-weight:700; margin:4px 0 2px;}
+.record-tile .who{font-size:12.5px; color:var(--text-muted);}
+
+table.leader-table{width:100%; border-collapse:collapse; font-size:14px;}
+table.leader-table th, table.leader-table td{padding:8px 6px; border-bottom:1px solid var(--border); text-align:left;}
+table.leader-table th{color:var(--text-muted); font-weight:600; font-size:11.5px; text-transform:uppercase;}
+table.leader-table td:first-child{font-size:16px;}
+table.leader-table td.num, table.leader-table th.num{text-align:right; font-family:var(--font-mono);}
+.rank-1{color:var(--gold); font-weight:700;}
+
+.history-item{padding:10px 0; border-bottom:1px solid var(--border);}
+.history-item:last-child{border-bottom:none;}
+.history-item .top-row{display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; color:var(--text-muted); margin-bottom:3px;}
+.history-item .tag{background:var(--surface-2); border-radius:6px; padding:1px 6px; font-size:11px;}
+.history-item .scores{font-size:14px;}
+.hist-actions{display:flex; align-items:center; gap:2px;}
+.hist-toggle{display:flex; align-items:center; gap:6px; border:none; background:none; padding:0; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+.hist-toggle:disabled{cursor:default; opacity:.7;}
+.hist-toggle .chev{display:inline-block; font-size:11px; transition:transform .15s ease;}
+.hist-toggle .chev.open{transform:rotate(180deg);}
+.icon-btn{border:none; background:none; color:var(--text-muted); cursor:pointer; font-size:13px; padding:4px 5px; border-radius:6px; line-height:1;}
+.icon-btn:hover{background:var(--surface-2); color:var(--text);}
+.history-item .win{color:var(--gold); font-weight:700;}
+
+.results-card{text-align:center;}
+.results-card .trophy{font-size:38px;}
+.standing-row{display:flex; justify-content:space-between; align-items:center; padding:9px 4px; border-bottom:1px solid var(--border); font-size:15px;}
+.standing-row:last-child{border-bottom:none;}
+.standing-row .score{font-family:var(--font-mono); font-weight:700;}
+.standing-row.win{color:var(--gold);}
+
+.modal-root{
+  position:fixed; inset:0; background:rgba(15,18,13,.5); display:flex; align-items:flex-end;
+  justify-content:center; z-index:50; padding:0;
+}
+@media (min-width:520px){ .modal-root{align-items:center; padding:16px;} }
+.modal-card{
+  background:var(--surface); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:20px;
+  max-height:88vh; overflow-y:auto; box-shadow:var(--shadow);
+}
+@media (min-width:520px){ .modal-card{border-radius:18px;} }
+.modal-title{font-size:18px; margin-bottom:14px;}
+.modal-actions{display:flex; gap:8px; margin-top:16px;}
+.modal-actions .btn{flex:1;}
+.retro-player-row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+.retro-player-row .name{flex:1; font-weight:500; font-size:14px;}
+.retro-player-row input{width:88px; padding:8px 10px; border-radius:9px; border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-family:var(--font-mono); text-align:right;}
+.quick-add-row{display:flex; gap:6px; margin-top:8px;}
+.quick-add-row input{flex:1; padding:9px 11px; border-radius:9px; border:1.5px solid var(--border); background:var(--surface); color:var(--text);}
+
+[hidden]{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-badge"><span class="brand-icon">🎲</span></span>
+      <div>
+        <h1>Tanteo</h1>
+        <small>Marcador y récords de tus juegos de mesa</small>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab" data-action="set-view" data-view="partida">Partida</button>
+      <button class="tab" data-action="set-view" data-view="registro">Registro</button>
+    </nav>
+  </header>
+  <div id="storage-banner" class="storage-banner" hidden>Guardado solo en este teléfono/navegador: si abres Tanteo desde otro móvil no verás este historial.</div>
+  <main id="view"></main>
+</div>
+<div id="modal-root" class="modal-root" hidden></div>
+
+<script>
+(function(){
+"use strict";
+
+const GAME_EMOJIS = ['🎲','♟️','🃏','🀄','🎯','🧩','🎮','🕹️','🏆','🐉','🦑','🚂','🏰','⚔️','🐺','🌾','🎳','🧙','🕵️','🚀','🏴‍☠️','🐴','💎','🃟','❤️','🔢'];
+const PLAYER_EMOJIS = ['🙂','😎','🤓','🥸','🦊','🐼','🐸','🐧','🦁','🐯','🐻','🦄','👑','🧑‍🚀','🧑‍🎤','🧑‍🍳','🥷','🧝','🧛','🐙','🐢','🦅','🐝','🌵','🌈'];
+
+const DEFAULT_GAMES = [
+  {name:'Qwirkle', icon:'🧩', winMode:'highest', targetScore:null},
+  {name:'Corazones', icon:'❤️', winMode:'lowest', targetScore:100},
+  {name:'Skyjo', icon:'🔢', winMode:'lowest', targetScore:100},
+];
+const DEFAULT_PLAYERS = [
+  {name:'Elena', icon:'🦄'},
+  {name:'Berta', icon:'🌈'},
+  {name:'Leo', icon:'🦁'},
+  {name:'Jesús', icon:'🦊'},
+];
+
+let Store = null;
+let games = [];
+let players = [];
+let allMatches = [];
+let liveMatch = null;
+let currentView = 'partida';
+let wakeLock = null;
+
+let cursor = 0;
+let keypadValue = '';
+let resultScreenMatchId = null;
+
+let setupSelectedGameId = null;
+let setupWinModeOverride = null;
+let setupSelectedPlayerIds = [];
+let setupTargetScore = '';
+let gamesSeeded = false;
+let playersSeeded = false;
+
+let registroSelectedGameId = null;
+let historyExpanded = false;
+
+let modalState = null;
+let retroState = null;
+
+const viewEl = document.getElementById('view');
+const modalRoot = document.getElementById('modal-root');
+const tabsEl = document.getElementById('tabs');
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function nowISO(){ return new Date().toISOString(); }
+function todayDate(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d.length <= 10 ? d + 'T12:00:00' : d);
+  return dt.toLocaleDateString('es-ES', {day:'2-digit', month:'short', year:'numeric'});
+}
+function pluralize(n, s, p){ return n === 1 ? `${n} ${s}` : `${n} ${p}`; }
+function findGame(id){ return games.find(g => g.id === id) || null; }
+function findPlayer(id){ return players.find(p => p.id === id) || null; }
+function fmtNum(n){ return Number(n).toLocaleString('es-ES'); }
+
+/* ---------- Store backends ---------- */
+
+/* Fallback store used when there's no Cowork db and no working Netlify Function:
+   persists in this browser's localStorage, so data survives closing Safari or
+   reopening the app later — it just won't show up on a different phone/browser. */
+function createLocalStore(){
+  const KEY = 'tanteo_state_v1';
+  function readState(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      return {games: data.games || [], players: data.players || [], matches: data.matches || []};
+    }catch(e){ return {games: [], players: [], matches: []}; }
+  }
+  function writeState(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+  let state = readState();
+  const listeners = {games: new Set(), players: new Set(), matches: new Set()};
+  function emit(key){ listeners[key].forEach(cb => cb(state[key].slice())); }
+  function genId(){ return 'id' + Math.random().toString(36).slice(2, 10); }
+
+  return {
+    onGames(cb){ listeners.games.add(cb); cb(state.games.slice()); return () => listeners.games.delete(cb); },
+    onPlayers(cb){ listeners.players.add(cb); cb(state.players.slice()); return () => listeners.players.delete(cb); },
+    onMatches(cb){ listeners.matches.add(cb); cb(state.matches.slice()); return () => listeners.matches.delete(cb); },
+    async addGame(data){ const id = genId(); state.games.push({id, ...data}); emit('games'); writeState(); return id; },
+    async updateGame(id, data){ const g = state.games.find(x => x.id === id); if(g) Object.assign(g, data); emit('games'); writeState(); },
+    async deleteGame(id){ state.games = state.games.filter(x => x.id !== id); emit('games'); writeState(); },
+    async addPlayer(data){ const id = genId(); state.players.push({id, ...data}); emit('players'); writeState(); return id; },
+    async updatePlayer(id, data){ const p = state.players.find(x => x.id === id); if(p) Object.assign(p, data); emit('players'); writeState(); },
+    async deletePlayer(id){ state.players = state.players.filter(x => x.id !== id); emit('players'); writeState(); },
+    async addMatch(data){ const id = genId(); state.matches.push({id, ...data}); emit('matches'); writeState(); return id; },
+    async updateMatch(id, data){ const m = state.matches.find(x => x.id === id); if(m) Object.assign(m, data); emit('matches'); writeState(); },
+    async deleteMatch(id){ state.matches = state.matches.filter(x => x.id !== id); emit('matches'); writeState(); },
+  };
+}
+
+function createDbStore(db){
+  const gamesCol = db.collection('games');
+  const playersCol = db.collection('players');
+  const matchesCol = db.collection('matches');
+  function toArr(snap){ return snap.docs.map(d => ({id:d.id, ...d.data()})); }
+  return {
+    onGames(cb){ return gamesCol.onSnapshot(snap => cb(toArr(snap)), () => {}); },
+    onPlayers(cb){ return playersCol.onSnapshot(snap => cb(toArr(snap)), () => {}); },
+    onMatches(cb){ return matchesCol.orderBy('createdAt', 'desc').limit(500).onSnapshot(snap => cb(toArr(snap)), () => {}); },
+    async addGame(data){ const ref = await gamesCol.add(data); return ref.id; },
+    async updateGame(id, data){ await gamesCol.doc(id).update(data); },
+    async deleteGame(id){ await gamesCol.doc(id).delete(); },
+    async addPlayer(data){ const ref = await playersCol.add(data); return ref.id; },
+    async updatePlayer(id, data){ await playersCol.doc(id).update(data); },
+    async deletePlayer(id){ await playersCol.doc(id).delete(); },
+    async addMatch(data){ const ref = await matchesCol.add(data); return ref.id; },
+    async updateMatch(id, data){ await matchesCol.doc(id).update(data); },
+    async deleteMatch(id){ await matchesCol.doc(id).delete(); },
+  };
+}
+
+/* Store backed by a Netlify Function + Netlify Blobs (single shared JSON document).
+   Not truly realtime like the Cowork db capability: it polls every few seconds so
+   changes made on another phone show up shortly after, instead of instantly. */
+function createBlobsStore(){
+  const ENDPOINT = '/.netlify/functions/state';
+  const POLL_MS = 4000;
+  let state = {games: [], players: [], matches: []};
+  const listeners = {games: new Set(), players: new Set(), matches: new Set()};
+  let saving = Promise.resolve();
+
+  function emit(key){ listeners[key].forEach(cb => cb(state[key].slice())); }
+  function emitAll(){ emit('games'); emit('players'); emit('matches'); }
+  function genId(){ return 'id' + Math.random().toString(36).slice(2, 10); }
+
+  async function load(){
+    const res = await fetch(ENDPOINT, {cache: 'no-store'});
+    if(!res.ok) throw new Error('load failed: ' + res.status);
+    const data = await res.json();
+    state = {games: data.games || [], players: data.players || [], matches: data.matches || []};
+    emitAll();
+  }
+  function save(){
+    saving = saving.then(() => fetch(ENDPOINT, {
+      method: 'PUT',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(state),
+    })).catch(() => {});
+    return saving;
+  }
+
+  load().catch(() => {});
+  setInterval(() => { load().catch(() => {}); }, POLL_MS);
+
+  return {
+    onGames(cb){ listeners.games.add(cb); cb(state.games.slice()); return () => listeners.games.delete(cb); },
+    onPlayers(cb){ listeners.players.add(cb); cb(state.players.slice()); return () => listeners.players.delete(cb); },
+    onMatches(cb){ listeners.matches.add(cb); cb(state.matches.slice()); return () => listeners.matches.delete(cb); },
+    async addGame(data){ const id = genId(); state.games.push({id, ...data}); emit('games'); await save(); return id; },
+    async updateGame(id, data){ const g = state.games.find(x => x.id === id); if(g) Object.assign(g, data); emit('games'); await save(); },
+    async deleteGame(id){ state.games = state.games.filter(x => x.id !== id); emit('games'); await save(); },
+    async addPlayer(data){ const id = genId(); state.players.push({id, ...data}); emit('players'); await save(); return id; },
+    async updatePlayer(id, data){ const p = state.players.find(x => x.id === id); if(p) Object.assign(p, data); emit('players'); await save(); },
+    async deletePlayer(id){ state.players = state.players.filter(x => x.id !== id); emit('players'); await save(); },
+    async addMatch(data){ const id = genId(); state.matches.push({id, ...data}); emit('matches'); await save(); return id; },
+    async updateMatch(id, data){ const m = state.matches.find(x => x.id === id); if(m) Object.assign(m, data); emit('matches'); await save(); },
+    async deleteMatch(id){ state.matches = state.matches.filter(x => x.id !== id); emit('matches'); await save(); },
+  };
+}
+
+/* ---------- Init ---------- */
+
+async function init(){
+  let db = null;
+  try{ db = window.claude && window.claude.use ? await window.claude.use('db') : null; }catch(e){ db = null; }
+  if(db){
+    Store = createDbStore(db);
+  }else{
+    let blobsOk = false;
+    try{
+      const res = await fetch('/.netlify/functions/state', {cache: 'no-store'});
+      blobsOk = res.ok;
+    }catch(e){ blobsOk = false; }
+    if(blobsOk){
+      Store = createBlobsStore();
+    }else{
+      Store = createLocalStore();
+      document.getElementById('storage-banner').hidden = false;
+    }
+  }
+  Store.onGames(arr => {
+    games = arr;
+    if(!gamesSeeded && arr.length === 0){ gamesSeeded = true; seedDefaultGames(); }
+    render();
+  });
+  Store.onPlayers(arr => {
+    players = arr;
+    if(!playersSeeded && arr.length === 0){ playersSeeded = true; seedDefaultPlayers(); }
+    render();
+  });
+  Store.onMatches(arr => { allMatches = arr; handleLiveMatchChange(); render(); });
+}
+
+async function seedDefaultGames(){
+  for(const g of DEFAULT_GAMES){ await Store.addGame({...g, createdAt: nowISO()}); }
+}
+async function seedDefaultPlayers(){
+  for(const p of DEFAULT_PLAYERS){ await Store.addPlayer({...p, createdAt: nowISO()}); }
+}
+
+function handleLiveMatchChange(){
+  const live = allMatches.find(m => m.status === 'live') || null;
+  if(live && (!liveMatch || liveMatch.id !== live.id)){
+    cursor = (live.entries || []).length;
+    keypadValue = '';
+  }
+  if(!live) resultScreenMatchId = resultScreenMatchId; // preserved until user leaves results screen
+  const wasLive = !!liveMatch;
+  liveMatch = live;
+  if(live && !wasLive) requestWakeLock();
+  else if(!live && wasLive) releaseWakeLock();
+}
+
+/* Keeps the screen from auto-locking while a match is being scored, so it survives
+   being passed between players. Not supported by every browser — fails silently. */
+async function requestWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  }catch(e){ wakeLock = null; }
+}
+function releaseWakeLock(){
+  if(wakeLock){ wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && liveMatch && !wakeLock) requestWakeLock();
+});
+
+/* ---------- Render root ---------- */
+
+function render(){
+  Array.from(tabsEl.children).forEach(btn => btn.classList.toggle('active', btn.dataset.view === currentView));
+  if(currentView === 'partida') renderPartida();
+  else renderRegistro();
+}
+
+function renderPartida(){
+  if(resultScreenMatchId){
+    renderResultsScreen();
+    return;
+  }
+  if(liveMatch){
+    renderScoring();
+  }else{
+    renderSetup();
+  }
+}
+
+/* ---------- Setup screen ---------- */
+
+function renderSetup(){
+  const game = findGame(setupSelectedGameId);
+  const winMode = setupWinModeOverride || (game ? game.winMode : 'highest') || 'highest';
+
+  let html = '';
+
+  html += `<div class="card section">
+    <div class="section-title">Juego</div>`;
+  if(games.length === 0){
+    html += `<p class="hint">Aún no tienes ningún juego. Crea el primero.</p>`;
+  }
+  html += `<div class="chip-row">`;
+  games.forEach(g => {
+    const sel = g.id === setupSelectedGameId;
+    html += `<button class="chip ${sel ? 'selected' : ''}" data-action="setup-select-game" data-id="${g.id}">
+      <span class="ic">${g.icon}</span>${esc(g.name)}
+      <span class="edit-pencil" data-action="edit-game" data-id="${g.id}" title="Editar">✏️</span>
+    </button>`;
+  });
+  html += `<button class="chip new" data-action="new-game">+ Nuevo juego</button>`;
+  html += `</div>`;
+  if(game){
+    html += `<div class="winmode-row">
+      <div class="winmode-opt ${winMode === 'highest' ? 'active' : ''}" data-action="setup-winmode" data-mode="highest">Gana quien más suma</div>
+      <div class="winmode-opt ${winMode === 'lowest' ? 'active' : ''}" data-action="setup-winmode" data-mode="lowest">Gana quien menos suma</div>
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <label>Puntuación límite para acabar (opcional)</label>
+      <input type="number" id="setup-target" inputmode="numeric" value="${esc(setupTargetScore)}" placeholder="p. ej. 100">
+      <div class="hint">Avisaremos en la partida en cuanto alguien la alcance.</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="card section">
+    <div class="section-title">Jugadores</div>`;
+  if(players.length === 0){
+    html += `<p class="hint">Añade a los jugadores habituales; quedarán guardados para la próxima vez.</p>`;
+  }
+  html += `<div class="chip-row">`;
+  players.forEach(p => {
+    const sel = setupSelectedPlayerIds.includes(p.id);
+    html += `<button class="chip ${sel ? 'selected' : ''}" data-action="setup-toggle-player" data-id="${p.id}">
+      <span class="ic">${p.icon}</span>${esc(p.name)}
+      <span class="edit-pencil" data-action="edit-player" data-id="${p.id}" title="Editar">✏️</span>
+    </button>`;
+  });
+  html += `<button class="chip new" data-action="new-player">+ Nuevo jugador</button>`;
+  html += `</div>`;
+
+  if(setupSelectedPlayerIds.length > 0){
+    html += `<div class="hint">Orden de turno (usa las flechas para ajustarlo):</div>`;
+    html += `<ul class="order-list">`;
+    setupSelectedPlayerIds.forEach((pid, idx) => {
+      const p = findPlayer(pid);
+      if(!p) return;
+      html += `<li class="order-item">
+        <span class="idx tabular">${idx + 1}</span>
+        <span class="ic">${p.icon}</span>
+        <span class="name">${esc(p.name)}</span>
+        <button data-action="order-up" data-id="${pid}" ${idx === 0 ? 'disabled' : ''} title="Subir">↑</button>
+        <button data-action="order-down" data-id="${pid}" ${idx === setupSelectedPlayerIds.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
+      </li>`;
+    });
+    html += `</ul>`;
+  }
+  html += `</div>`;
+
+  const canStart = !!game && setupSelectedPlayerIds.length >= 1;
+  html += `<button class="btn primary block" data-action="start-match" ${canStart ? '' : 'disabled'}>Iniciar partida</button>`;
+
+  viewEl.innerHTML = html;
+  const targetInput = document.getElementById('setup-target');
+  if(targetInput) targetInput.addEventListener('input', e => { setupTargetScore = e.target.value; });
+}
+
+/* ---------- Scoring screen ---------- */
+
+function computeTotals(match){
+  const n = match.playerIds.length;
+  const entries = match.entries || [];
+  const totals = {};
+  match.playerIds.forEach((pid, idx) => {
+    let sum = 0;
+    for(let i = idx; i < entries.length; i += n) sum += (entries[i] || 0);
+    totals[pid] = sum;
+  });
+  return totals;
+}
+function computeWinners(totals, winMode){
+  const vals = Object.values(totals);
+  if(!vals.length) return [];
+  const extreme = winMode === 'lowest' ? Math.min(...vals) : Math.max(...vals);
+  return Object.keys(totals).filter(pid => totals[pid] === extreme);
+}
+function computeRanking(match, totals){
+  const dir = match.winMode === 'lowest' ? 1 : -1;
+  const list = match.playerIds.map(pid => ({pid, total: totals[pid] || 0}));
+  list.sort((a, b) => dir * (a.total - b.total));
+  let rank = 0, prevVal = null;
+  list.forEach((row, i) => {
+    if(prevVal === null || row.total !== prevVal){ rank = i + 1; prevVal = row.total; }
+    row.rank = rank;
+  });
+  return list;
+}
+
+function renderScoring(){
+  const m = liveMatch;
+  const n = m.playerIds.length;
+  const entries = m.entries || [];
+  const frontier = entries.length;
+  if(cursor > frontier) cursor = frontier;
+  const curPlayerIdx = cursor % n;
+  const curRound = Math.floor(cursor / n) + 1;
+  const curPid = m.playerIds[curPlayerIdx];
+  const curPlayer = findPlayer(curPid) || {name: m.playerNames?.[curPid] || '?', icon: m.playerIcons?.[curPid] || '🙂'};
+  const totals = computeTotals(m);
+  const numRounds = Math.max(1, Math.ceil(Math.max(frontier, cursor + 1) / n));
+
+  let html = '';
+  html += `<div class="match-header">
+    <div class="who"><span class="ic">${m.gameIcon}</span><h2>${esc(m.gameName)}</h2></div>
+    <div class="actions">
+      <button class="btn gold small" data-action="finish-match">Finalizar</button>
+      <button class="btn ghost small" data-action="cancel-match">Cancelar</button>
+    </div>
+  </div>`;
+
+  if(m.targetScore){
+    const reached = m.playerIds.filter(pid => (totals[pid] || 0) >= m.targetScore);
+    if(reached.length){
+      const names = reached.map(pid => (findPlayer(pid) || {name: m.playerNames?.[pid] || '?'}).name).join(', ');
+      html += `<div class="target-banner">
+        <span>🎯 <strong>${esc(names)}</strong> ${reached.length > 1 ? 'han alcanzado' : 'ha alcanzado'} los ${fmtNum(m.targetScore)} puntos.</span>
+        <button class="btn gold small" data-action="finish-match">Finalizar</button>
+      </div>`;
+    }
+  }
+
+  html += `<div class="turn-card">
+    <div class="round">Ronda ${curRound}</div>
+    <div class="who">${curPlayer.icon} ${esc(curPlayer.name)}</div>
+  </div>`;
+
+  const ranking = computeRanking(m, totals);
+  html += `<div class="rank-strip">` + ranking.map(row => {
+    const p = findPlayer(row.pid) || {name: m.playerNames?.[row.pid] || '?', icon: m.playerIcons?.[row.pid] || ''};
+    return `<div class="rank-row ${row.rank === 1 ? 'lead' : ''}">
+      <span class="pos">${row.rank}º</span><span class="ic">${p.icon}</span>
+      <span class="name">${esc(p.name)}</span><span class="pts">${fmtNum(row.total)}</span>
+    </div>`;
+  }).join('') + `</div>`;
+
+  html += `<div class="keypad-display">${keypadValue === '' ? '<span class="ph">0</span>' : esc(keypadValue)}</div>`;
+  html += `<div class="keypad">
+    ${[7,8,9,4,5,6,1,2,3].map(d => `<button class="key" data-action="key-digit" data-d="${d}">${d}</button>`).join('')}
+    <button class="key fn" data-action="key-sign">±</button>
+    <button class="key" data-action="key-digit" data-d="0">0</button>
+    <button class="key fn" data-action="key-back">⌫</button>
+  </div>`;
+  html += `<div class="keypad-actions">
+    <button class="btn back" data-action="cursor-back" ${cursor === 0 ? 'disabled' : ''}>◂ Atrás</button>
+    <button class="btn primary save" data-action="save-score">Guardar y siguiente ▸</button>
+  </div>`;
+
+  html += `<div class="score-table-wrap"><table class="score-table"><thead><tr><th>Ronda</th>`;
+  m.playerIds.forEach(pid => {
+    const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || ''};
+    html += `<th>${p.icon}<br>${esc(p.name)}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+  for(let r = 0; r < numRounds; r++){
+    html += `<tr><td>${r + 1}</td>`;
+    for(let c = 0; c < n; c++){
+      const idx = r * n + c;
+      const has = idx < frontier;
+      const isCurrent = idx === cursor;
+      html += `<td class="cell ${has ? '' : 'empty'} ${isCurrent ? 'current' : ''}" ${has ? `data-action="jump-cursor" data-idx="${idx}"` : ''}>${has ? fmtNum(entries[idx]) : '–'}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `<tr class="total"><td>Total</td>`;
+  m.playerIds.forEach(pid => { html += `<td>${fmtNum(totals[pid] || 0)}</td>`; });
+  html += `</tr></tbody></table></div>`;
+
+  viewEl.innerHTML = html;
+  const cur = viewEl.querySelector('.cell.current');
+  if(cur) cur.scrollIntoView({block: 'nearest', inline: 'nearest'});
+}
+
+function renderResultsScreen(){
+  const m = allMatches.find(x => x.id === resultScreenMatchId);
+  if(!m){ resultScreenMatchId = null; renderSetup(); return; }
+  const totals = m.totals || {};
+  const order = m.playerIds.slice().sort((a, b) => (totals[b] || 0) - (totals[a] || 0));
+  const winners = m.winnerIds || [];
+  let html = `<div class="card results-card">
+    <div class="trophy">🏆</div>
+    <h2>Partida finalizada</h2>
+    <p class="muted">${m.gameIcon} ${esc(m.gameName)} · ${fmtDate(m.date)}</p>`;
+  order.forEach(pid => {
+    const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || ''};
+    const isWin = winners.includes(pid);
+    html += `<div class="standing-row ${isWin ? 'win' : ''}">
+      <span>${isWin ? '🏆 ' : ''}${p.icon} ${esc(p.name)}</span>
+      <span class="score">${fmtNum(totals[pid] || 0)}</span>
+    </div>`;
+  });
+  html += `</div>
+  <div class="modal-actions" style="margin-top:14px;">
+    <button class="btn" data-action="results-new-match">Nueva partida</button>
+    <button class="btn primary" data-action="results-view-registro" data-gid="${m.gameId}">Ver registro</button>
+  </div>`;
+  viewEl.innerHTML = html;
+}
+
+/* ---------- Registro ---------- */
+
+function computeLeaderboard(matchList){
+  const stats = {};
+  matchList.forEach(m => {
+    m.playerIds.forEach(pid => {
+      if(!stats[pid]) stats[pid] = {played: 0, wins: 0};
+      stats[pid].played++;
+    });
+    (m.winnerIds || []).forEach(pid => { if(stats[pid]) stats[pid].wins++; });
+  });
+  return Object.keys(stats).map(pid => {
+    const p = findPlayer(pid);
+    const fallback = matchList.find(m => m.playerNames && m.playerNames[pid]);
+    return {
+      pid,
+      name: p ? p.name : (fallback ? fallback.playerNames[pid] : '?'),
+      icon: p ? p.icon : (fallback ? fallback.playerIcons[pid] : '🙂'),
+      wins: stats[pid].wins,
+      played: stats[pid].played,
+    };
+  }).sort((a, b) => b.wins - a.wins || b.played - a.played);
+}
+function computeCurrentStreak(matchesDesc){
+  if(!matchesDesc.length) return null;
+  const champs = matchesDesc[0].winnerIds || [];
+  if(!champs.length) return null;
+  let bestStreak = 0, bestPids = [];
+  champs.forEach(pid => {
+    let streak = 0;
+    for(const m of matchesDesc){
+      if(!(m.playerIds || []).includes(pid)) continue;
+      if((m.winnerIds || []).includes(pid)) streak++;
+      else break;
+    }
+    if(streak > bestStreak){ bestStreak = streak; bestPids = [pid]; }
+    else if(streak === bestStreak && streak > 0) bestPids.push(pid);
+  });
+  return bestPids.length ? {pids: bestPids, streak: bestStreak} : null;
+}
+function leaderboardTableHtml(list){
+  if(!list.length) return `<p class="hint">Aún no hay partidas registradas.</p>`;
+  let html = `<table class="leader-table"><thead><tr><th>Jugador</th><th class="num">Victorias</th><th class="num">Partidas</th></tr></thead><tbody>`;
+  list.forEach((row, i) => {
+    html += `<tr><td class="${i === 0 && row.wins > 0 ? 'rank-1' : ''}">${row.icon} ${esc(row.name)}</td><td class="num tabular">${row.wins}</td><td class="num tabular">${row.played}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  return html;
+}
+
+function renderRegistro(){
+  if(registroSelectedGameId){
+    renderGameDetail(registroSelectedGameId);
+  }else{
+    renderGameGrid();
+  }
+}
+
+function renderGameGrid(){
+  let html = `<div class="section" style="display:flex; justify-content:flex-end;">
+    <button class="btn small" data-action="open-retro" data-gid="">+ Añadir partida anterior</button>
+  </div>`;
+
+  const globalBoard = computeLeaderboard(allMatches.filter(m => m.status === 'finished'));
+  html += `<div class="card section">
+    <div class="section-title">Clasificación general</div>
+    ${globalBoard.length ? leaderboardTableHtml(globalBoard) : '<p class="hint">Aquí verás las victorias totales de cada jugador en cuanto termines alguna partida.</p>'}
+  </div>`;
+
+  if(games.length === 0){
+    html += `<div class="empty-state">Aún no hay juegos registrados.<br>Crea uno desde la pestaña Partida para empezar.</div>`;
+  }else{
+    html += `<div class="game-grid">`;
+    games.forEach(g => {
+      const finished = allMatches.filter(m => m.gameId === g.id && m.status === 'finished');
+      let topLine = 'Sin partidas registradas';
+      let hasChampion = false;
+      if(finished.length){
+        const finishedDesc = finished.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+        const streak = computeCurrentStreak(finishedDesc);
+        if(streak){
+          hasChampion = true;
+          const names = streak.pids.map(pid => {
+            const p = findPlayer(pid);
+            return p ? p.name : (finishedDesc[0].playerNames?.[pid] || '?');
+          });
+          topLine = `🏆 ${esc(names.join(' y '))} · ${pluralize(streak.streak, 'victoria seguida', 'victorias seguidas')}`;
+        }
+      }
+      html += `<button class="card game-card" data-action="open-game-detail" data-id="${g.id}">
+        <span class="ic">${g.icon}</span>
+        <div class="name">${esc(g.name)}</div>
+        <div class="stat">${pluralize(finished.length, 'partida', 'partidas')}</div>
+        <div class="${hasChampion ? 'top' : 'stat'}">${topLine}</div>
+      </button>`;
+    });
+    html += `</div>`;
+  }
+  viewEl.innerHTML = html;
+}
+
+function renderGameDetail(gameId){
+  const g = findGame(gameId);
+  if(!g){ registroSelectedGameId = null; renderGameGrid(); return; }
+  const finished = allMatches.filter(m => m.gameId === gameId && m.status === 'finished')
+    .slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+  const leaderboard = computeLeaderboard(finished);
+
+  let record = null;
+  finished.forEach(m => {
+    Object.entries(m.totals || {}).forEach(([pid, val]) => {
+      const isBetter = g.winMode === 'lowest' ? (record === null || val < record.val) : (record === null || val > record.val);
+      if(isBetter){
+        const p = findPlayer(pid);
+        const name = p ? p.name : (m.playerNames?.[pid] || '?');
+        record = {val, name, date: m.date};
+      }
+    });
+  });
+
+  let html = `<div class="back-row">
+    <button class="btn ghost" data-action="back-to-grid">◂</button>
+    <span class="ic">${g.icon}</span>
+    <h2 style="flex:1;">${esc(g.name)}</h2>
+    <button class="btn ghost" data-action="edit-game" data-id="${g.id}" title="Editar">✏️</button>
+  </div>`;
+
+  if(record){
+    html += `<div class="card section record-grid" style="grid-template-columns:1fr;">
+      <div class="record-tile">
+        <div class="lbl">Récord</div>
+        <div class="val tabular">${fmtNum(record.val)}</div>
+        <div class="who">${esc(record.name)} · ${fmtDate(record.date)}</div>
+      </div>
+    </div>`;
+  }
+
+  html += `<div class="card section">
+    <div class="section-title">Clasificación</div>
+    ${leaderboard.length === 0 ? '<p class="hint">Aún no hay partidas de este juego.</p>' : leaderboardTableHtml(leaderboard)}
+  </div>`;
+
+  html += `<div class="card section">
+    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <button class="hist-toggle" data-action="toggle-history" ${finished.length === 0 ? 'disabled' : ''}>
+        <span class="chev ${historyExpanded ? 'open' : ''}">▾</span>
+        <span>Historial${finished.length ? ` (${finished.length})` : ''}</span>
+      </button>
+      <button class="btn small" data-action="open-retro" data-gid="${g.id}">+ Añadir partida</button>
+    </div>`;
+  if(finished.length === 0){
+    html += `<p class="hint">Sin partidas registradas todavía.</p>`;
+  }else if(!historyExpanded){
+    html += `<button class="hint" style="background:none;border:none;padding:0;cursor:pointer;text-align:left;" data-action="toggle-history">Toca para ver las ${finished.length === 1 ? '1 partida' : finished.length + ' partidas'} registradas ▾</button>`;
+  }else{
+    finished.forEach(m => {
+      const scoreParts = m.playerIds.map(pid => {
+        const p = findPlayer(pid);
+        const name = p ? p.name : (m.playerNames?.[pid] || '?');
+        const isWin = (m.winnerIds || []).includes(pid);
+        return `<span class="${isWin ? 'win' : ''}">${esc(name)} ${fmtNum((m.totals || {})[pid] || 0)}</span>`;
+      }).join(', ');
+      html += `<div class="history-item">
+        <div class="top-row">
+          <span>${fmtDate(m.date)}</span>
+          <span class="hist-actions">
+            <span class="tag">${m.retro ? 'Añadida a posteriori' : `${Math.ceil((m.entries || []).length / m.playerIds.length)} rondas`}</span>
+            <button class="icon-btn" data-action="edit-match" data-id="${m.id}" title="Editar partida">✏️</button>
+            <button class="icon-btn" data-action="delete-match" data-id="${m.id}" title="Eliminar partida">🗑️</button>
+          </span>
+        </div>
+        <div class="scores">${scoreParts}</div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  viewEl.innerHTML = html;
+}
+
+/* ---------- Entity modal (game / player create+edit) ---------- */
+
+function openEntityModal(kind, id){
+  let name = '', icon = (kind === 'game' ? GAME_EMOJIS[0] : PLAYER_EMOJIS[0]), winMode = 'highest', targetScore = '';
+  if(id){
+    const rec = kind === 'game' ? findGame(id) : findPlayer(id);
+    if(rec){ name = rec.name; icon = rec.icon; winMode = rec.winMode || 'highest'; targetScore = (rec.targetScore != null) ? String(rec.targetScore) : ''; }
+  }
+  modalState = {kind, id, name, icon, winMode, targetScore};
+  renderEntityModal();
+  modalRoot.hidden = false;
+}
+
+function entityInUse(kind, id){
+  return kind === 'game' ? allMatches.some(m => m.gameId === id) : allMatches.some(m => (m.playerIds || []).includes(id));
+}
+
+function renderEntityModal(){
+  const s = modalState;
+  const emojis = s.kind === 'game' ? GAME_EMOJIS : PLAYER_EMOJIS;
+  const title = s.kind === 'game' ? (s.id ? 'Editar juego' : 'Nuevo juego') : (s.id ? 'Editar jugador' : 'Nuevo jugador');
+  let html = `<div class="modal-card">
+    <h3 class="modal-title">${title}</h3>
+    <div class="field">
+      <label>Nombre</label>
+      <input type="text" id="entity-name" value="${esc(s.name)}" placeholder="${s.kind === 'game' ? 'p. ej. Catan' : 'p. ej. Marta'}">
+    </div>
+    <div class="field">
+      <label>Icono</label>
+      <div class="emoji-grid">
+        ${emojis.map(e => `<button class="emoji-opt ${e === s.icon ? 'selected' : ''}" data-action="entity-pick-icon" data-e="${e}">${e}</button>`).join('')}
+      </div>
+    </div>`;
+  if(s.kind === 'game'){
+    html += `<div class="field">
+      <label>Condición de victoria</label>
+      <div class="winmode-row">
+        <div class="winmode-opt ${s.winMode === 'highest' ? 'active' : ''}" data-action="entity-winmode" data-mode="highest">Gana quien más suma</div>
+        <div class="winmode-opt ${s.winMode === 'lowest' ? 'active' : ''}" data-action="entity-winmode" data-mode="lowest">Gana quien menos suma</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Puntuación límite por defecto (opcional)</label>
+      <input type="number" id="entity-target" inputmode="numeric" value="${esc(s.targetScore)}" placeholder="p. ej. 100">
+      <div class="hint">Se propondrá al iniciar una partida de este juego; se puede cambiar cada vez.</div>
+    </div>`;
+  }
+  const inUse = s.id ? entityInUse(s.kind, s.id) : false;
+  html += `<div class="modal-actions">
+    <button class="btn" data-action="modal-close">Cancelar</button>
+    ${s.id ? `<button class="btn danger" data-action="entity-delete" ${inUse ? 'disabled title="En uso en partidas guardadas"' : ''}>Eliminar</button>` : ''}
+    <button class="btn primary" data-action="entity-save">Guardar</button>
+  </div>
+  </div>`;
+  modalRoot.innerHTML = html;
+  const nameInput = document.getElementById('entity-name');
+  nameInput.addEventListener('input', e => { modalState.name = e.target.value; });
+  nameInput.focus();
+  const targetInput = document.getElementById('entity-target');
+  if(targetInput) targetInput.addEventListener('input', e => { modalState.targetScore = e.target.value; });
+}
+
+async function saveEntity(){
+  const s = modalState;
+  const name = (s.name || '').trim();
+  if(!name) return;
+  if(s.kind === 'game'){
+    const data = {name, icon: s.icon, winMode: s.winMode, targetScore: s.targetScore ? Number(s.targetScore) : null};
+    if(s.id){ await Store.updateGame(s.id, data); }
+    else{
+      const id = await Store.addGame({...data, createdAt: nowISO()});
+      setupSelectedGameId = id;
+    }
+  }else{
+    const data = {name, icon: s.icon};
+    if(s.id){ await Store.updatePlayer(s.id, data); }
+    else{
+      const id = await Store.addPlayer({...data, createdAt: nowISO()});
+      if(!setupSelectedPlayerIds.includes(id)) setupSelectedPlayerIds.push(id);
+    }
+  }
+  closeModal();
+}
+
+/* ---------- Retro (past match) modal ---------- */
+
+function openRetroModal(gameId, matchId){
+  if(matchId){
+    const m = allMatches.find(x => x.id === matchId);
+    if(m){
+      const scores = {};
+      (m.playerIds || []).forEach(pid => { scores[pid] = String((m.totals || {})[pid] ?? ''); });
+      retroState = {gameId: m.gameId, date: m.date || todayDate(), selectedPlayerIds: (m.playerIds || []).slice(), scores, quickName: '', matchId: m.id};
+      renderRetroModal();
+      modalRoot.hidden = false;
+      return;
+    }
+  }
+  retroState = {gameId: gameId || (games[0] ? games[0].id : ''), date: todayDate(), selectedPlayerIds: [], scores: {}, quickName: '', matchId: null};
+  renderRetroModal();
+  modalRoot.hidden = false;
+}
+
+function renderRetroModal(){
+  const s = retroState;
+  let html = `<div class="modal-card">
+    <h3 class="modal-title">${s.matchId ? 'Editar partida' : 'Añadir partida anterior'}</h3>`;
+  if(games.length === 0){
+    html += `<p class="hint">Primero crea un juego desde la pestaña Partida.</p>
+      <div class="modal-actions"><button class="btn block" data-action="modal-close">Cerrar</button></div></div>`;
+    modalRoot.innerHTML = html;
+    return;
+  }
+  html += `<div class="field">
+    <label>Juego</label>
+    <select id="retro-game">
+      ${games.map(g => `<option value="${g.id}" ${g.id === s.gameId ? 'selected' : ''}>${g.icon} ${esc(g.name)}</option>`).join('')}
+    </select>
+    <div class="hint">¿No está en la lista? Créalo primero desde “+ Nuevo juego” en Partida.</div>
+  </div>
+  <div class="field">
+    <label>Fecha</label>
+    <input type="date" id="retro-date" value="${s.date}" max="${todayDate()}">
+  </div>
+  <div class="field">
+    <label>Jugadores y puntuación final</label>
+    <div class="chip-row">`;
+  players.forEach(p => {
+    const sel = s.selectedPlayerIds.includes(p.id);
+    html += `<button class="chip ${sel ? 'selected' : ''}" data-action="retro-toggle-player" data-id="${p.id}"><span class="ic">${p.icon}</span>${esc(p.name)}</button>`;
+  });
+  html += `</div>
+    <div class="quick-add-row">
+      <input type="text" id="retro-quick-name" placeholder="Nuevo jugador" value="${esc(s.quickName)}">
+      <button class="btn small" data-action="retro-quick-add">Añadir</button>
+    </div>`;
+  if(s.selectedPlayerIds.length){
+    html += `<div style="margin-top:12px;">`;
+    s.selectedPlayerIds.forEach(pid => {
+      const p = findPlayer(pid);
+      if(!p) return;
+      html += `<div class="retro-player-row">
+        <span class="ic">${p.icon}</span><span class="name">${esc(p.name)}</span>
+        <input type="number" inputmode="numeric" data-action="retro-score-input" data-id="${pid}" value="${s.scores[pid] ?? ''}" placeholder="0">
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>
+  <div class="modal-actions">
+    <button class="btn" data-action="modal-close">Cancelar</button>
+    <button class="btn primary" data-action="retro-save" ${s.selectedPlayerIds.length ? '' : 'disabled'}>${s.matchId ? 'Guardar cambios' : 'Guardar partida'}</button>
+  </div>
+  </div>`;
+  modalRoot.innerHTML = html;
+  document.getElementById('retro-game').addEventListener('change', e => { retroState.gameId = e.target.value; });
+  document.getElementById('retro-date').addEventListener('change', e => { retroState.date = e.target.value; });
+  const qn = document.getElementById('retro-quick-name');
+  if(qn) qn.addEventListener('input', e => { retroState.quickName = e.target.value; });
+  modalRoot.querySelectorAll('[data-action="retro-score-input"]').forEach(inp => {
+    inp.addEventListener('input', e => { retroState.scores[e.target.dataset.id] = e.target.value; });
+  });
+}
+
+async function retroQuickAdd(){
+  const name = (retroState.quickName || '').trim();
+  if(!name) return;
+  const id = await Store.addPlayer({name, icon: PLAYER_EMOJIS[0], createdAt: nowISO()});
+  retroState.selectedPlayerIds.push(id);
+  retroState.quickName = '';
+  renderRetroModal();
+}
+
+async function saveRetroMatch(){
+  const s = retroState;
+  const g = findGame(s.gameId);
+  if(!g || !s.selectedPlayerIds.length) return;
+  const playerNames = {}, playerIcons = {}, totals = {};
+  s.selectedPlayerIds.forEach(pid => {
+    const p = findPlayer(pid);
+    if(p){ playerNames[pid] = p.name; playerIcons[pid] = p.icon; }
+    totals[pid] = Number(s.scores[pid]) || 0;
+  });
+  const winnerIds = computeWinners(totals, g.winMode);
+  if(s.matchId){
+    await Store.updateMatch(s.matchId, {
+      gameId: g.id, gameName: g.name, gameIcon: g.icon,
+      playerIds: s.selectedPlayerIds.slice(),
+      playerNames, playerIcons,
+      winMode: g.winMode,
+      totals, winnerIds,
+      date: s.date,
+    });
+  }else{
+    await Store.addMatch({
+      gameId: g.id, gameName: g.name, gameIcon: g.icon,
+      playerIds: s.selectedPlayerIds.slice(),
+      playerNames, playerIcons,
+      winMode: g.winMode,
+      status: 'finished', retro: true,
+      totals, winnerIds,
+      date: s.date, createdAt: nowISO(), finishedAt: nowISO(),
+    });
+  }
+  closeModal();
+  registroSelectedGameId = g.id;
+  currentView = 'registro';
+  render();
+}
+
+/* ---------- Confirm modal ---------- */
+
+let confirmCallback = null;
+function openConfirm(title, bodyHtml, confirmLabel, danger, onConfirm){
+  confirmCallback = onConfirm;
+  modalRoot.innerHTML = `<div class="modal-card">
+    <h3 class="modal-title">${title}</h3>
+    <div>${bodyHtml}</div>
+    <div class="modal-actions">
+      <button class="btn" data-action="modal-close">Cancelar</button>
+      <button class="btn ${danger ? 'danger' : 'primary'}" data-action="confirm-yes">${confirmLabel}</button>
+    </div>
+  </div>`;
+  modalRoot.hidden = false;
+}
+
+function closeModal(){
+  modalRoot.hidden = true;
+  modalRoot.innerHTML = '';
+  modalState = null;
+  retroState = null;
+  confirmCallback = null;
+  render();
+}
+
+/* ---------- Actions ---------- */
+
+async function handleAction(action, el, ev){
+  switch(action){
+    case 'set-view':
+      currentView = el.dataset.view;
+      render();
+      break;
+
+    case 'setup-select-game': {
+      setupSelectedGameId = el.dataset.id;
+      setupWinModeOverride = null;
+      const sg = findGame(setupSelectedGameId);
+      setupTargetScore = (sg && sg.targetScore != null) ? String(sg.targetScore) : '';
+      render();
+      break;
+    }
+    case 'setup-winmode':
+      setupWinModeOverride = el.dataset.mode;
+      render();
+      break;
+    case 'new-game':
+      openEntityModal('game', null);
+      break;
+    case 'edit-game':
+      openEntityModal('game', el.dataset.id);
+      break;
+    case 'new-player':
+      openEntityModal('player', null);
+      break;
+    case 'edit-player':
+      openEntityModal('player', el.dataset.id);
+      break;
+    case 'setup-toggle-player': {
+      const id = el.dataset.id;
+      const i = setupSelectedPlayerIds.indexOf(id);
+      if(i >= 0) setupSelectedPlayerIds.splice(i, 1);
+      else setupSelectedPlayerIds.push(id);
+      render();
+      break;
+    }
+    case 'order-up': {
+      const id = el.dataset.id;
+      const i = setupSelectedPlayerIds.indexOf(id);
+      if(i > 0){ [setupSelectedPlayerIds[i-1], setupSelectedPlayerIds[i]] = [setupSelectedPlayerIds[i], setupSelectedPlayerIds[i-1]]; render(); }
+      break;
+    }
+    case 'order-down': {
+      const id = el.dataset.id;
+      const i = setupSelectedPlayerIds.indexOf(id);
+      if(i >= 0 && i < setupSelectedPlayerIds.length - 1){ [setupSelectedPlayerIds[i+1], setupSelectedPlayerIds[i]] = [setupSelectedPlayerIds[i], setupSelectedPlayerIds[i+1]]; render(); }
+      break;
+    }
+    case 'start-match': {
+      const g = findGame(setupSelectedGameId);
+      if(!g || !setupSelectedPlayerIds.length) return;
+      const winMode = setupWinModeOverride || g.winMode || 'highest';
+      const playerNames = {}, playerIcons = {};
+      setupSelectedPlayerIds.forEach(pid => { const p = findPlayer(pid); if(p){ playerNames[pid] = p.name; playerIcons[pid] = p.icon; } });
+      await Store.addMatch({
+        gameId: g.id, gameName: g.name, gameIcon: g.icon,
+        playerIds: setupSelectedPlayerIds.slice(), playerNames, playerIcons,
+        winMode, targetScore: setupTargetScore ? Number(setupTargetScore) : null,
+        status: 'live', entries: [],
+        date: todayDate(), createdAt: nowISO(),
+      });
+      setupSelectedGameId = null; setupWinModeOverride = null; setupSelectedPlayerIds = []; setupTargetScore = '';
+      break;
+    }
+
+    case 'key-digit':
+      keypadValue = (keypadValue === '0' || keypadValue === '-0') ? (keypadValue[0] === '-' ? '-' : '') + el.dataset.d : keypadValue + el.dataset.d;
+      renderScoring();
+      break;
+    case 'key-back':
+      keypadValue = keypadValue.slice(0, -1);
+      renderScoring();
+      break;
+    case 'key-sign':
+      keypadValue = keypadValue.startsWith('-') ? keypadValue.slice(1) : ('-' + keypadValue);
+      renderScoring();
+      break;
+    case 'save-score': {
+      const m = liveMatch;
+      const val = keypadValue === '' || keypadValue === '-' ? 0 : parseInt(keypadValue, 10);
+      const entries = (m.entries || []).slice();
+      if(cursor < entries.length) entries[cursor] = val;
+      else entries.push(val);
+      await Store.updateMatch(m.id, {entries});
+      cursor = Math.min(cursor + 1, entries.length);
+      keypadValue = cursor < entries.length ? String(entries[cursor]) : '';
+      break;
+    }
+    case 'cursor-back':
+      if(cursor > 0){
+        cursor -= 1;
+        keypadValue = (liveMatch.entries || [])[cursor] != null ? String(liveMatch.entries[cursor]) : '';
+        renderScoring();
+      }
+      break;
+    case 'jump-cursor':
+      cursor = parseInt(el.dataset.idx, 10);
+      keypadValue = (liveMatch.entries || [])[cursor] != null ? String(liveMatch.entries[cursor]) : '';
+      renderScoring();
+      break;
+    case 'finish-match': {
+      const m = liveMatch;
+      const totals = computeTotals(m);
+      const winnerIds = computeWinners(totals, m.winMode);
+      const order = m.playerIds.slice().sort((a, b) => (totals[b] || 0) - (totals[a] || 0));
+      const body = order.map(pid => {
+        const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || ''};
+        const win = winnerIds.includes(pid);
+        return `<div class="standing-row ${win ? 'win' : ''}"><span>${win ? '🏆 ' : ''}${p.icon} ${esc(p.name)}</span><span class="score">${fmtNum(totals[pid] || 0)}</span></div>`;
+      }).join('');
+      openConfirm('Finalizar partida', body, 'Finalizar', false, async () => {
+        await Store.updateMatch(m.id, {status: 'finished', totals, winnerIds, finishedAt: nowISO()});
+        resultScreenMatchId = m.id;
+        closeModal();
+      });
+      break;
+    }
+    case 'cancel-match':
+      openConfirm('Cancelar partida', '<p class="muted">Se borrará esta partida y todas las puntuaciones introducidas. Esta acción no se puede deshacer.</p>', 'Sí, cancelar', true, async () => {
+        await Store.deleteMatch(liveMatch.id);
+        closeModal();
+      });
+      break;
+    case 'results-new-match':
+      resultScreenMatchId = null;
+      render();
+      break;
+    case 'results-view-registro':
+      resultScreenMatchId = null;
+      registroSelectedGameId = el.dataset.gid;
+      currentView = 'registro';
+      render();
+      break;
+
+    case 'open-game-detail':
+      registroSelectedGameId = el.dataset.id;
+      historyExpanded = false;
+      render();
+      break;
+    case 'back-to-grid':
+      registroSelectedGameId = null;
+      historyExpanded = false;
+      render();
+      break;
+    case 'toggle-history':
+      historyExpanded = !historyExpanded;
+      render();
+      break;
+    case 'open-retro':
+      openRetroModal(el.dataset.gid || registroSelectedGameId || null);
+      break;
+    case 'edit-match': {
+      const m = allMatches.find(x => x.id === el.dataset.id);
+      if(m) openRetroModal(m.gameId, m.id);
+      break;
+    }
+    case 'delete-match': {
+      const id = el.dataset.id;
+      openConfirm('Eliminar partida', '<p class="muted">Se borrará esta partida del historial y de la clasificación. Esta acción no se puede deshacer.</p>', 'Eliminar', true, async () => {
+        await Store.deleteMatch(id);
+        closeModal();
+      });
+      break;
+    }
+    case 'retro-toggle-player': {
+      const id = el.dataset.id;
+      const i = retroState.selectedPlayerIds.indexOf(id);
+      if(i >= 0) retroState.selectedPlayerIds.splice(i, 1);
+      else retroState.selectedPlayerIds.push(id);
+      renderRetroModal();
+      break;
+    }
+    case 'retro-quick-add':
+      await retroQuickAdd();
+      break;
+    case 'retro-save':
+      await saveRetroMatch();
+      break;
+
+    case 'entity-pick-icon':
+      modalState.icon = el.dataset.e;
+      renderEntityModal();
+      break;
+    case 'entity-winmode':
+      modalState.winMode = el.dataset.mode;
+      renderEntityModal();
+      break;
+    case 'entity-save':
+      await saveEntity();
+      break;
+    case 'entity-delete':
+      openConfirm('Eliminar', '<p class="muted">¿Seguro que quieres eliminarlo? Esta acción no se puede deshacer.</p>', 'Eliminar', true, async () => {
+        if(modalState.kind === 'game') await Store.deleteGame(modalState.id);
+        else await Store.deletePlayer(modalState.id);
+        closeModal();
+      });
+      break;
+
+    case 'modal-close':
+      closeModal();
+      break;
+    case 'confirm-yes':
+      if(confirmCallback) await confirmCallback();
+      break;
+  }
+}
+
+viewEl.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  handleAction(el.dataset.action, el, e);
+});
+modalRoot.addEventListener('click', e => {
+  if(e.target === modalRoot){ closeModal(); return; }
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  handleAction(el.dataset.action, el, e);
+});
+tabsEl.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  handleAction(el.dataset.action, el, e);
+});
+
+if(window.claude && window.claude.hot){
+  const start = () => init();
+  window.claude.hot.ready ? window.claude.hot.ready(start) : start();
+}else{
+  init();
+}
+})();
+</script>
+
+</body>
+</html>
