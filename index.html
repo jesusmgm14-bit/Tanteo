@@ -114,8 +114,8 @@ button{font-family:inherit;}
 .order-item button{border:none; background:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:4px 6px;}
 .order-item button:hover{color:var(--text);}
 
-.winmode-row{display:flex; gap:8px; margin-top:8px;}
-.winmode-opt{flex:1; text-align:center; padding:8px 6px; border-radius:10px; border:1.5px solid var(--border); font-size:12.5px; cursor:pointer; color:var(--text-muted);}
+.winmode-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+.winmode-opt{flex:1 1 120px; text-align:center; padding:8px 6px; border-radius:10px; border:1.5px solid var(--border); font-size:12.5px; cursor:pointer; color:var(--text-muted);}
 .winmode-opt.active{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); font-weight:600;}
 
 .btn{
@@ -133,10 +133,12 @@ button{font-family:inherit;}
 
 .field{margin-bottom:12px;}
 .field label{display:block; font-size:12.5px; font-weight:600; color:var(--text-muted); margin-bottom:5px;}
-.field input[type="text"], .field input[type="number"], .field input[type="date"], .field select{
-  width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-size:15px;
+.field input[type="text"], .field input[type="number"], .field input[type="date"], .field select, .field textarea{
+  width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; font-family:inherit;
 }
-.field input:focus-visible, .field select:focus-visible, .btn:focus-visible, .chip:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+.field textarea{resize:vertical; min-height:120px; line-height:1.4;}
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible, .btn:focus-visible, .chip:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+.rules-text{white-space:pre-wrap; font-size:14px; line-height:1.5; color:var(--text); margin:0;}
 
 .emoji-grid{display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin-top:4px;}
 .emoji-opt{border:1.5px solid var(--border); background:var(--surface); border-radius:9px; font-size:19px; padding:6px 0; cursor:pointer;}
@@ -288,7 +290,7 @@ table.leader-table td.num, table.leader-table th.num{text-align:right; font-fami
 (function(){
 "use strict";
 
-const GAME_EMOJIS = ['🎲','♟️','🃏','🀄','🎯','🧩','🎮','🕹️','🏆','🐉','🦑','🚂','🏰','⚔️','🐺','🌾','🎳','🧙','🕵️','🚀','🏴‍☠️','🐴','💎','🃟','❤️','🔢'];
+const GAME_EMOJIS = ['🎲','♟️','🃏','🀄','🎯','🧩','🎮','🕹️','🏆','🐉','🦑','🚂','🏰','⚔️','🐺','🐒','🌾','🎳','🧙','🕵️','🚀','🏴‍☠️','🐴','💎','🃟','❤️','🔢'];
 const PLAYER_EMOJIS = ['🙂','😎','🤓','🥸','🦊','🐼','🐸','🐧','🦁','🐯','🐻','🦄','👑','🧑‍🚀','🧑‍🎤','🧑‍🍳','🥷','🧝','🧛','🐙','🐢','🦅','🐝','🌵','🌈'];
 
 const DEFAULT_GAMES = [
@@ -314,6 +316,7 @@ let wakeLock = null;
 let cursor = 0;
 let keypadValue = '';
 let resultScreenMatchId = null;
+let finishSelectedIds = [];
 
 let setupSelectedGameId = null;
 let setupWinModeOverride = null;
@@ -327,6 +330,7 @@ let historyExpanded = false;
 
 let modalState = null;
 let retroState = null;
+let rulesState = null;
 
 const viewEl = document.getElementById('view');
 const modalRoot = document.getElementById('modal-root');
@@ -499,6 +503,7 @@ function handleLiveMatchChange(){
   if(live && (!liveMatch || liveMatch.id !== live.id)){
     cursor = (live.entries || []).length;
     keypadValue = '';
+    finishSelectedIds = [];
   }
   if(!live) resultScreenMatchId = resultScreenMatchId; // preserved until user leaves results screen
   const wasLive = !!liveMatch;
@@ -524,6 +529,28 @@ document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'visible' && liveMatch && !wakeLock) requestWakeLock();
 });
 
+/* Short confirmation beep after saving a score. Web Audio API, no asset file needed;
+   fails silently if the browser blocks audio before any user gesture. */
+let sharedAudioCtx = null;
+function playSaveSound(){
+  try{
+    if(!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = sharedAudioCtx;
+    if(ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.16);
+  }catch(e){ /* audio not available, ignore */ }
+}
+
 /* ---------- Render root ---------- */
 
 function render(){
@@ -538,7 +565,8 @@ function renderPartida(){
     return;
   }
   if(liveMatch){
-    renderScoring();
+    if(liveMatch.winMode === 'finish') renderFinishScreen();
+    else renderScoring();
   }else{
     renderSetup();
   }
@@ -567,7 +595,9 @@ function renderSetup(){
   });
   html += `<button class="chip new" data-action="new-game">+ Nuevo juego</button>`;
   html += `</div>`;
-  if(game){
+  if(game && game.winMode === 'finish'){
+    html += `<p class="hint">Este juego no lleva puntuación: gana quien acaba antes. Elige los jugadores y pulsa Iniciar partida.</p>`;
+  }else if(game){
     html += `<div class="winmode-row">
       <div class="winmode-opt ${winMode === 'highest' ? 'active' : ''}" data-action="setup-winmode" data-mode="highest">Gana quien más suma</div>
       <div class="winmode-opt ${winMode === 'lowest' ? 'active' : ''}" data-action="setup-winmode" data-mode="lowest">Gana quien menos suma</div>
@@ -596,7 +626,7 @@ function renderSetup(){
   html += `<button class="chip new" data-action="new-player">+ Nuevo jugador</button>`;
   html += `</div>`;
 
-  if(setupSelectedPlayerIds.length > 0){
+  if(setupSelectedPlayerIds.length > 0 && !(game && game.winMode === 'finish')){
     html += `<div class="hint">Orden de turno (usa las flechas para ajustarlo):</div>`;
     html += `<ul class="order-list">`;
     setupSelectedPlayerIds.forEach((pid, idx) => {
@@ -737,6 +767,38 @@ function renderScoring(){
   if(cur) cur.scrollIntoView({block: 'nearest', inline: 'nearest'});
 }
 
+/* Games without scoring (e.g. "gana quien acaba antes"): no keypad, just tap
+   the player(s) who finished first and end the match. */
+function renderFinishScreen(){
+  const m = liveMatch;
+  let html = '';
+  html += `<div class="match-header">
+    <div class="who"><span class="ic">${m.gameIcon}</span><h2>${esc(m.gameName)}</h2></div>
+    <div class="actions">
+      <button class="btn ghost small" data-action="cancel-match">Cancelar</button>
+    </div>
+  </div>`;
+
+  html += `<div class="turn-card">
+    <div class="round">Sin puntuación</div>
+    <div class="who">¿Quién ha acabado antes?</div>
+  </div>`;
+
+  html += `<div class="chip-row" style="margin-bottom:20px;">`;
+  m.playerIds.forEach(pid => {
+    const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || '🙂'};
+    const sel = finishSelectedIds.includes(pid);
+    html += `<button class="chip ${sel ? 'selected' : ''}" data-action="finish-toggle-winner" data-id="${pid}">
+      <span class="ic">${p.icon}</span>${esc(p.name)}${sel ? ' 🏆' : ''}
+    </button>`;
+  });
+  html += `</div>`;
+
+  html += `<button class="btn primary block" data-action="finish-order-match" ${finishSelectedIds.length ? '' : 'disabled'}>Finalizar partida</button>`;
+
+  viewEl.innerHTML = html;
+}
+
 function renderResultsScreen(){
   const m = allMatches.find(x => x.id === resultScreenMatchId);
   if(!m){ resultScreenMatchId = null; renderSetup(); return; }
@@ -746,20 +808,20 @@ function renderResultsScreen(){
   let html = `<div class="card results-card">
     <div class="trophy">🏆</div>
     <h2>Partida finalizada</h2>
-    <p class="muted">${m.gameIcon} ${esc(m.gameName)} · ${fmtDate(m.date)}</p>`;
+    <p class="muted">${m.gameIcon} ${esc(m.gameName)} · ${fmtDate(m.date)}</p>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn" data-action="results-new-match">Nueva partida</button>
+      <button class="btn primary" data-action="results-view-registro" data-gid="${m.gameId}">Ver registro</button>
+    </div>`;
   order.forEach(pid => {
     const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || ''};
     const isWin = winners.includes(pid);
     html += `<div class="standing-row ${isWin ? 'win' : ''}">
       <span>${isWin ? '🏆 ' : ''}${p.icon} ${esc(p.name)}</span>
-      <span class="score">${fmtNum(totals[pid] || 0)}</span>
+      ${m.winMode === 'finish' ? '' : `<span class="score">${fmtNum(totals[pid] || 0)}</span>`}
     </div>`;
   });
-  html += `</div>
-  <div class="modal-actions" style="margin-top:14px;">
-    <button class="btn" data-action="results-new-match">Nueva partida</button>
-    <button class="btn primary" data-action="results-view-registro" data-gid="${m.gameId}">Ver registro</button>
-  </div>`;
+  html += `</div>`;
   viewEl.innerHTML = html;
 }
 
@@ -902,6 +964,14 @@ function renderGameDetail(gameId){
   }
 
   html += `<div class="card section">
+    <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Reglas</span>
+      <button class="icon-btn" data-action="edit-rules" data-id="${g.id}" title="Editar reglas">✏️</button>
+    </div>
+    ${g.rules ? `<p class="rules-text">${esc(g.rules)}</p>` : '<p class="hint">Aún no has apuntado nada. Toca el lápiz para añadir un recordatorio de las reglas.</p>'}
+  </div>`;
+
+  html += `<div class="card section">
     <div class="section-title">Clasificación</div>
     ${leaderboard.length === 0 ? '<p class="hint">Aún no hay partidas de este juego.</p>' : leaderboardTableHtml(leaderboard)}
   </div>`;
@@ -920,17 +990,21 @@ function renderGameDetail(gameId){
     html += `<button class="hint" style="background:none;border:none;padding:0;cursor:pointer;text-align:left;" data-action="toggle-history">Toca para ver las ${finished.length === 1 ? '1 partida' : finished.length + ' partidas'} registradas ▾</button>`;
   }else{
     finished.forEach(m => {
+      const isFinishMode = m.winMode === 'finish';
       const scoreParts = m.playerIds.map(pid => {
         const p = findPlayer(pid);
         const name = p ? p.name : (m.playerNames?.[pid] || '?');
         const isWin = (m.winnerIds || []).includes(pid);
-        return `<span class="${isWin ? 'win' : ''}">${esc(name)} ${fmtNum((m.totals || {})[pid] || 0)}</span>`;
+        return isFinishMode
+          ? `<span class="${isWin ? 'win' : ''}">${isWin ? '🏆 ' : ''}${esc(name)}</span>`
+          : `<span class="${isWin ? 'win' : ''}">${esc(name)} ${fmtNum((m.totals || {})[pid] || 0)}</span>`;
       }).join(', ');
+      const tag = isFinishMode ? (m.retro ? 'Añadida a posteriori' : 'Sin puntuación') : (m.retro ? 'Añadida a posteriori' : `${Math.ceil((m.entries || []).length / m.playerIds.length)} rondas`);
       html += `<div class="history-item">
         <div class="top-row">
           <span>${fmtDate(m.date)}</span>
           <span class="hist-actions">
-            <span class="tag">${m.retro ? 'Añadida a posteriori' : `${Math.ceil((m.entries || []).length / m.playerIds.length)} rondas`}</span>
+            <span class="tag">${tag}</span>
             <button class="icon-btn" data-action="edit-match" data-id="${m.id}" title="Editar partida">✏️</button>
             <button class="icon-btn" data-action="delete-match" data-id="${m.id}" title="Eliminar partida">🗑️</button>
           </span>
@@ -942,6 +1016,42 @@ function renderGameDetail(gameId){
   html += `</div>`;
 
   viewEl.innerHTML = html;
+}
+
+/* ---------- Rules modal (free-text notes per game) ---------- */
+
+function openRulesModal(gameId){
+  const g = findGame(gameId);
+  if(!g) return;
+  rulesState = {gameId, text: g.rules || ''};
+  renderRulesModal();
+  modalRoot.hidden = false;
+}
+
+function renderRulesModal(){
+  const s = rulesState;
+  const g = findGame(s.gameId);
+  const html = `<div class="modal-card">
+    <h3 class="modal-title">Reglas${g ? ` · ${esc(g.name)}` : ''}</h3>
+    <div class="modal-actions">
+      <button class="btn" data-action="modal-close">Cancelar</button>
+      <button class="btn primary" data-action="rules-save">Guardar</button>
+    </div>
+    <div class="field">
+      <label>Notas para recordar cómo se juega</label>
+      <textarea id="rules-text" rows="8" placeholder="p. ej. Se reparten 7 cartas por jugador, se roba y se descarta por turnos, gana quien se queda antes sin cartas...">${esc(s.text)}</textarea>
+    </div>
+  </div>`;
+  modalRoot.innerHTML = html;
+  const ta = document.getElementById('rules-text');
+  ta.addEventListener('input', e => { rulesState.text = e.target.value; });
+  ta.focus();
+}
+
+async function saveRules(){
+  const s = rulesState;
+  await Store.updateGame(s.gameId, {rules: s.text.trim()});
+  closeModal();
 }
 
 /* ---------- Entity modal (game / player create+edit) ---------- */
@@ -965,8 +1075,14 @@ function renderEntityModal(){
   const s = modalState;
   const emojis = s.kind === 'game' ? GAME_EMOJIS : PLAYER_EMOJIS;
   const title = s.kind === 'game' ? (s.id ? 'Editar juego' : 'Nuevo juego') : (s.id ? 'Editar jugador' : 'Nuevo jugador');
+  const inUse = s.id ? entityInUse(s.kind, s.id) : false;
   let html = `<div class="modal-card">
     <h3 class="modal-title">${title}</h3>
+    <div class="modal-actions">
+      <button class="btn" data-action="modal-close">Cancelar</button>
+      ${s.id ? `<button class="btn danger" data-action="entity-delete" ${inUse ? 'disabled title="En uso en partidas guardadas"' : ''}>Eliminar</button>` : ''}
+      <button class="btn primary" data-action="entity-save">Guardar</button>
+    </div>
     <div class="field">
       <label>Nombre</label>
       <input type="text" id="entity-name" value="${esc(s.name)}" placeholder="${s.kind === 'game' ? 'p. ej. Catan' : 'p. ej. Marta'}">
@@ -983,21 +1099,18 @@ function renderEntityModal(){
       <div class="winmode-row">
         <div class="winmode-opt ${s.winMode === 'highest' ? 'active' : ''}" data-action="entity-winmode" data-mode="highest">Gana quien más suma</div>
         <div class="winmode-opt ${s.winMode === 'lowest' ? 'active' : ''}" data-action="entity-winmode" data-mode="lowest">Gana quien menos suma</div>
+        <div class="winmode-opt ${s.winMode === 'finish' ? 'active' : ''}" data-action="entity-winmode" data-mode="finish">Gana quien acaba antes (sin puntuación)</div>
       </div>
-    </div>
-    <div class="field">
+    </div>`;
+    if(s.winMode !== 'finish'){
+      html += `<div class="field">
       <label>Puntuación límite por defecto (opcional)</label>
       <input type="number" id="entity-target" inputmode="numeric" value="${esc(s.targetScore)}" placeholder="p. ej. 100">
       <div class="hint">Se propondrá al iniciar una partida de este juego; se puede cambiar cada vez.</div>
     </div>`;
+    }
   }
-  const inUse = s.id ? entityInUse(s.kind, s.id) : false;
-  html += `<div class="modal-actions">
-    <button class="btn" data-action="modal-close">Cancelar</button>
-    ${s.id ? `<button class="btn danger" data-action="entity-delete" ${inUse ? 'disabled title="En uso en partidas guardadas"' : ''}>Eliminar</button>` : ''}
-    <button class="btn primary" data-action="entity-save">Guardar</button>
-  </div>
-  </div>`;
+  html += `</div>`;
   modalRoot.innerHTML = html;
   const nameInput = document.getElementById('entity-name');
   nameInput.addEventListener('input', e => { modalState.name = e.target.value; });
@@ -1011,7 +1124,7 @@ async function saveEntity(){
   const name = (s.name || '').trim();
   if(!name) return;
   if(s.kind === 'game'){
-    const data = {name, icon: s.icon, winMode: s.winMode, targetScore: s.targetScore ? Number(s.targetScore) : null};
+    const data = {name, icon: s.icon, winMode: s.winMode, targetScore: (s.winMode !== 'finish' && s.targetScore) ? Number(s.targetScore) : null};
     if(s.id){ await Store.updateGame(s.id, data); }
     else{
       const id = await Store.addGame({...data, createdAt: nowISO()});
@@ -1036,31 +1149,38 @@ function openRetroModal(gameId, matchId){
     if(m){
       const scores = {};
       (m.playerIds || []).forEach(pid => { scores[pid] = String((m.totals || {})[pid] ?? ''); });
-      retroState = {gameId: m.gameId, date: m.date || todayDate(), selectedPlayerIds: (m.playerIds || []).slice(), scores, quickName: '', matchId: m.id};
+      retroState = {gameId: m.gameId, date: m.date || todayDate(), selectedPlayerIds: (m.playerIds || []).slice(), scores, winnerIds: (m.winnerIds || []).slice(), quickName: '', matchId: m.id};
       renderRetroModal();
       modalRoot.hidden = false;
       return;
     }
   }
-  retroState = {gameId: gameId || (games[0] ? games[0].id : ''), date: todayDate(), selectedPlayerIds: [], scores: {}, quickName: '', matchId: null};
+  retroState = {gameId: gameId || (games[0] ? games[0].id : ''), date: todayDate(), selectedPlayerIds: [], scores: {}, winnerIds: [], quickName: '', matchId: null};
   renderRetroModal();
   modalRoot.hidden = false;
 }
 
 function renderRetroModal(){
   const s = retroState;
+  const g = findGame(s.gameId);
+  const isFinish = !!g && g.winMode === 'finish';
   let html = `<div class="modal-card">
     <h3 class="modal-title">${s.matchId ? 'Editar partida' : 'Añadir partida anterior'}</h3>`;
   if(games.length === 0){
-    html += `<p class="hint">Primero crea un juego desde la pestaña Partida.</p>
-      <div class="modal-actions"><button class="btn block" data-action="modal-close">Cerrar</button></div></div>`;
+    html += `<div class="modal-actions"><button class="btn block" data-action="modal-close">Cerrar</button></div>
+      <p class="hint">Primero crea un juego desde la pestaña Partida.</p></div>`;
     modalRoot.innerHTML = html;
     return;
   }
-  html += `<div class="field">
+  const canSave = s.selectedPlayerIds.length > 0 && (!isFinish || s.winnerIds.length > 0);
+  html += `<div class="modal-actions">
+    <button class="btn" data-action="modal-close">Cancelar</button>
+    <button class="btn primary" data-action="retro-save" ${canSave ? '' : 'disabled'}>${s.matchId ? 'Guardar cambios' : 'Guardar partida'}</button>
+  </div>
+  <div class="field">
     <label>Juego</label>
     <select id="retro-game">
-      ${games.map(g => `<option value="${g.id}" ${g.id === s.gameId ? 'selected' : ''}>${g.icon} ${esc(g.name)}</option>`).join('')}
+      ${games.map(g2 => `<option value="${g2.id}" ${g2.id === s.gameId ? 'selected' : ''}>${g2.icon} ${esc(g2.name)}</option>`).join('')}
     </select>
     <div class="hint">¿No está en la lista? Créalo primero desde “+ Nuevo juego” en Partida.</div>
   </div>
@@ -1069,7 +1189,7 @@ function renderRetroModal(){
     <input type="date" id="retro-date" value="${s.date}" max="${todayDate()}">
   </div>
   <div class="field">
-    <label>Jugadores y puntuación final</label>
+    <label>${isFinish ? 'Jugadores' : 'Jugadores y puntuación final'}</label>
     <div class="chip-row">`;
   players.forEach(p => {
     const sel = s.selectedPlayerIds.includes(p.id);
@@ -1080,7 +1200,17 @@ function renderRetroModal(){
       <input type="text" id="retro-quick-name" placeholder="Nuevo jugador" value="${esc(s.quickName)}">
       <button class="btn small" data-action="retro-quick-add">Añadir</button>
     </div>`;
-  if(s.selectedPlayerIds.length){
+  if(s.selectedPlayerIds.length && isFinish){
+    html += `<div class="hint" style="margin-top:12px;">Toca a quien ganó (acabó antes):</div>
+    <div class="chip-row" style="margin-top:6px;">`;
+    s.selectedPlayerIds.forEach(pid => {
+      const p = findPlayer(pid);
+      if(!p) return;
+      const win = s.winnerIds.includes(pid);
+      html += `<button class="chip ${win ? 'selected' : ''}" data-action="retro-toggle-winner" data-id="${pid}"><span class="ic">${p.icon}</span>${esc(p.name)}${win ? ' 🏆' : ''}</button>`;
+    });
+    html += `</div>`;
+  }else if(s.selectedPlayerIds.length){
     html += `<div style="margin-top:12px;">`;
     s.selectedPlayerIds.forEach(pid => {
       const p = findPlayer(pid);
@@ -1092,14 +1222,9 @@ function renderRetroModal(){
     });
     html += `</div>`;
   }
-  html += `</div>
-  <div class="modal-actions">
-    <button class="btn" data-action="modal-close">Cancelar</button>
-    <button class="btn primary" data-action="retro-save" ${s.selectedPlayerIds.length ? '' : 'disabled'}>${s.matchId ? 'Guardar cambios' : 'Guardar partida'}</button>
-  </div>
-  </div>`;
+  html += `</div></div>`;
   modalRoot.innerHTML = html;
-  document.getElementById('retro-game').addEventListener('change', e => { retroState.gameId = e.target.value; });
+  document.getElementById('retro-game').addEventListener('change', e => { retroState.gameId = e.target.value; renderRetroModal(); });
   document.getElementById('retro-date').addEventListener('change', e => { retroState.date = e.target.value; });
   const qn = document.getElementById('retro-quick-name');
   if(qn) qn.addEventListener('input', e => { retroState.quickName = e.target.value; });
@@ -1121,13 +1246,15 @@ async function saveRetroMatch(){
   const s = retroState;
   const g = findGame(s.gameId);
   if(!g || !s.selectedPlayerIds.length) return;
+  const isFinish = g.winMode === 'finish';
+  if(isFinish && !s.winnerIds.length) return;
   const playerNames = {}, playerIcons = {}, totals = {};
   s.selectedPlayerIds.forEach(pid => {
     const p = findPlayer(pid);
     if(p){ playerNames[pid] = p.name; playerIcons[pid] = p.icon; }
-    totals[pid] = Number(s.scores[pid]) || 0;
+    if(!isFinish) totals[pid] = Number(s.scores[pid]) || 0;
   });
-  const winnerIds = computeWinners(totals, g.winMode);
+  const winnerIds = isFinish ? s.winnerIds.filter(pid => s.selectedPlayerIds.includes(pid)) : computeWinners(totals, g.winMode);
   if(s.matchId){
     await Store.updateMatch(s.matchId, {
       gameId: g.id, gameName: g.name, gameIcon: g.icon,
@@ -1161,11 +1288,11 @@ function openConfirm(title, bodyHtml, confirmLabel, danger, onConfirm){
   confirmCallback = onConfirm;
   modalRoot.innerHTML = `<div class="modal-card">
     <h3 class="modal-title">${title}</h3>
-    <div>${bodyHtml}</div>
     <div class="modal-actions">
       <button class="btn" data-action="modal-close">Cancelar</button>
       <button class="btn ${danger ? 'danger' : 'primary'}" data-action="confirm-yes">${confirmLabel}</button>
     </div>
+    <div>${bodyHtml}</div>
   </div>`;
   modalRoot.hidden = false;
 }
@@ -1175,6 +1302,7 @@ function closeModal(){
   modalRoot.innerHTML = '';
   modalState = null;
   retroState = null;
+  rulesState = null;
   confirmCallback = null;
   render();
 }
@@ -1205,6 +1333,12 @@ async function handleAction(action, el, ev){
       break;
     case 'edit-game':
       openEntityModal('game', el.dataset.id);
+      break;
+    case 'edit-rules':
+      openRulesModal(el.dataset.id);
+      break;
+    case 'rules-save':
+      await saveRules();
       break;
     case 'new-player':
       openEntityModal('player', null);
@@ -1267,9 +1401,12 @@ async function handleAction(action, el, ev){
       const entries = (m.entries || []).slice();
       if(cursor < entries.length) entries[cursor] = val;
       else entries.push(val);
-      await Store.updateMatch(m.id, {entries});
       cursor = Math.min(cursor + 1, entries.length);
       keypadValue = cursor < entries.length ? String(entries[cursor]) : '';
+      liveMatch = {...m, entries};
+      playSaveSound();
+      renderScoring();
+      await Store.updateMatch(m.id, {entries});
       break;
     }
     case 'cursor-back':
@@ -1297,6 +1434,31 @@ async function handleAction(action, el, ev){
       openConfirm('Finalizar partida', body, 'Finalizar', false, async () => {
         await Store.updateMatch(m.id, {status: 'finished', totals, winnerIds, finishedAt: nowISO()});
         resultScreenMatchId = m.id;
+        closeModal();
+      });
+      break;
+    }
+    case 'finish-toggle-winner': {
+      const id = el.dataset.id;
+      const i = finishSelectedIds.indexOf(id);
+      if(i >= 0) finishSelectedIds.splice(i, 1);
+      else finishSelectedIds.push(id);
+      renderFinishScreen();
+      break;
+    }
+    case 'finish-order-match': {
+      const m = liveMatch;
+      if(!finishSelectedIds.length) return;
+      const winnerIds = finishSelectedIds.slice();
+      const body = m.playerIds.map(pid => {
+        const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || ''};
+        const win = winnerIds.includes(pid);
+        return `<div class="standing-row ${win ? 'win' : ''}"><span>${win ? '🏆 ' : ''}${p.icon} ${esc(p.name)}</span></div>`;
+      }).join('');
+      openConfirm('Finalizar partida', body, 'Finalizar', false, async () => {
+        await Store.updateMatch(m.id, {status: 'finished', totals: {}, winnerIds, finishedAt: nowISO()});
+        resultScreenMatchId = m.id;
+        finishSelectedIds = [];
         closeModal();
       });
       break;
@@ -1351,8 +1513,21 @@ async function handleAction(action, el, ev){
     case 'retro-toggle-player': {
       const id = el.dataset.id;
       const i = retroState.selectedPlayerIds.indexOf(id);
-      if(i >= 0) retroState.selectedPlayerIds.splice(i, 1);
-      else retroState.selectedPlayerIds.push(id);
+      if(i >= 0){
+        retroState.selectedPlayerIds.splice(i, 1);
+        const wi = retroState.winnerIds.indexOf(id);
+        if(wi >= 0) retroState.winnerIds.splice(wi, 1);
+      }else{
+        retroState.selectedPlayerIds.push(id);
+      }
+      renderRetroModal();
+      break;
+    }
+    case 'retro-toggle-winner': {
+      const id = el.dataset.id;
+      const i = retroState.winnerIds.indexOf(id);
+      if(i >= 0) retroState.winnerIds.splice(i, 1);
+      else retroState.winnerIds.push(id);
       renderRetroModal();
       break;
     }
