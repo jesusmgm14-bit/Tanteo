@@ -324,6 +324,7 @@ let setupSelectedPlayerIds = [];
 let setupTargetScore = '';
 let gamesSeeded = false;
 let playersSeeded = false;
+let pendingSeedPromises = [];
 
 let registroSelectedGameId = null;
 let historyExpanded = false;
@@ -416,36 +417,50 @@ function createBlobsStore(){
   const ENDPOINT = '/.netlify/functions/state';
   const POLL_MS = 4000;
   let state = {games: [], players: [], matches: []};
+  let ready = false; // true una vez sabemos de verdad qué hay en la nube (tras el primer load())
   const listeners = {games: new Set(), players: new Set(), matches: new Set()};
   let saving = Promise.resolve();
+  let pendingWrites = 0;
 
   function emit(key){ listeners[key].forEach(cb => cb(state[key].slice())); }
   function emitAll(){ emit('games'); emit('players'); emit('matches'); }
   function genId(){ return 'id' + Math.random().toString(36).slice(2, 10); }
 
   async function load(){
+    // Si hay guardados locales en curso, no pisamos el estado en memoria con
+    // lo que haya en el servidor todavía (podría estar desactualizado y
+    // haríamos perder esos cambios al re-emitirlo).
+    if(pendingWrites > 0) return;
     const res = await fetch(ENDPOINT, {cache: 'no-store'});
     if(!res.ok) throw new Error('load failed: ' + res.status);
     const data = await res.json();
+    if(pendingWrites > 0) return;
     state = {games: data.games || [], players: data.players || [], matches: data.matches || []};
+    ready = true;
     emitAll();
   }
   function save(){
+    pendingWrites++;
     saving = saving.then(() => fetch(ENDPOINT, {
       method: 'PUT',
       headers: {'content-type': 'application/json'},
       body: JSON.stringify(state),
-    })).catch(() => {});
+    })).catch(() => {}).then(() => { pendingWrites--; }, () => { pendingWrites--; });
     return saving;
   }
 
-  load().catch(() => {});
+  // Primera carga real desde la nube. Hasta que no termine, onGames/onPlayers
+  // NO avisan de un estado "vacío" (ver más abajo) — si lo hicieran antes de
+  // tiempo, la app pensaría que no hay nada guardado todavía y sembraría los
+  // juegos/jugadores por defecto otra vez encima de los que ya existen,
+  // duplicándolos en cada apertura de la app.
+  load().catch(() => { ready = true; emitAll(); });
   setInterval(() => { load().catch(() => {}); }, POLL_MS);
 
   return {
-    onGames(cb){ listeners.games.add(cb); cb(state.games.slice()); return () => listeners.games.delete(cb); },
-    onPlayers(cb){ listeners.players.add(cb); cb(state.players.slice()); return () => listeners.players.delete(cb); },
-    onMatches(cb){ listeners.matches.add(cb); cb(state.matches.slice()); return () => listeners.matches.delete(cb); },
+    onGames(cb){ listeners.games.add(cb); if(ready) cb(state.games.slice()); return () => listeners.games.delete(cb); },
+    onPlayers(cb){ listeners.players.add(cb); if(ready) cb(state.players.slice()); return () => listeners.players.delete(cb); },
+    onMatches(cb){ listeners.matches.add(cb); if(ready) cb(state.matches.slice()); return () => listeners.matches.delete(cb); },
     async addGame(data){ const id = genId(); state.games.push({id, ...data}); emit('games'); await save(); return id; },
     async updateGame(id, data){ const g = state.games.find(x => x.id === id); if(g) Object.assign(g, data); emit('games'); await save(); },
     async deleteGame(id){ state.games = state.games.filter(x => x.id !== id); emit('games'); await save(); },
@@ -456,6 +471,55 @@ function createBlobsStore(){
     async updateMatch(id, data){ const m = state.matches.find(x => x.id === id); if(m) Object.assign(m, data); emit('matches'); await save(); },
     async deleteMatch(id){ state.matches = state.matches.filter(x => x.id !== id); emit('matches'); await save(); },
   };
+}
+
+/* ---------- Migración localStorage → Netlify Blobs ----------
+   Cuando el guardado en la nube (Blobs) empieza a funcionar en un teléfono
+   que ya tenía partidas guardadas solo en local, esos datos locales no
+   aparecen solos en la nube (son almacenes distintos). Esto ofrece, una
+   sola vez por dispositivo, subir ese respaldo local a la nube. */
+function readLocalBackup(){
+  try{
+    const raw = localStorage.getItem('tanteo_state_v1');
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    const games = Array.isArray(data.games) ? data.games : [];
+    const players = Array.isArray(data.players) ? data.players : [];
+    const matches = Array.isArray(data.matches) ? data.matches : [];
+    if(games.length === 0 && players.length === 0 && matches.length === 0) return null;
+    return {games, players, matches};
+  }catch(e){ return null; }
+}
+
+function maybeOfferMigration(){
+  const FLAG = 'tanteo_migration_offered_v1';
+  if(localStorage.getItem(FLAG)) return;
+  const backup = readLocalBackup();
+  localStorage.setItem(FLAG, '1');
+  if(!backup) return;
+  openConfirm(
+    'Subir tus partidas a la nube',
+    '<p class="hint">Hemos encontrado juegos, jugadores o partidas guardados solo en este teléfono (de antes de activar el guardado en la nube). ¿Quieres subirlos ahora para que se vean también desde otros móviles? Esto sustituirá lo que haya en la nube por lo de este teléfono.</p>',
+    'Subir ahora',
+    false,
+    () => migrateLocalBackupToBlobs(backup)
+  );
+}
+
+async function migrateLocalBackupToBlobs(backup){
+  // Espera a que termine cualquier siembra de juegos/jugadores por defecto en
+  // curso (se dispara sola al detectar la nube vacía) para que no sobrescriba
+  // el respaldo justo después de subirlo.
+  try{ await Promise.all(pendingSeedPromises); }catch(e){}
+  try{
+    await fetch('/.netlify/functions/state', {
+      method: 'PUT',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(backup),
+    });
+  }catch(e){}
+  closeModal();
+  location.reload();
 }
 
 /* ---------- Init ---------- */
@@ -473,6 +537,7 @@ async function init(){
     }catch(e){ blobsOk = false; }
     if(blobsOk){
       Store = createBlobsStore();
+      maybeOfferMigration();
     }else{
       Store = createLocalStore();
       document.getElementById('storage-banner').hidden = false;
@@ -480,12 +545,12 @@ async function init(){
   }
   Store.onGames(arr => {
     games = arr;
-    if(!gamesSeeded && arr.length === 0){ gamesSeeded = true; seedDefaultGames(); }
+    if(!gamesSeeded && arr.length === 0){ gamesSeeded = true; pendingSeedPromises.push(seedDefaultGames()); }
     render();
   });
   Store.onPlayers(arr => {
     players = arr;
-    if(!playersSeeded && arr.length === 0){ playersSeeded = true; seedDefaultPlayers(); }
+    if(!playersSeeded && arr.length === 0){ playersSeeded = true; pendingSeedPromises.push(seedDefaultPlayers()); }
     render();
   });
   Store.onMatches(arr => { allMatches = arr; handleLiveMatchChange(); render(); });
