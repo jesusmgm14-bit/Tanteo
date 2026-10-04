@@ -934,17 +934,20 @@ function renderGameDetail(gameId){
 
   const leaderboard = computeLeaderboard(finished);
 
-  let record = null;
+  const recordsByCount = {};
   finished.forEach(m => {
+    const count = (m.playerIds || []).length;
     Object.entries(m.totals || {}).forEach(([pid, val]) => {
-      const isBetter = g.winMode === 'lowest' ? (record === null || val < record.val) : (record === null || val > record.val);
+      const cur = recordsByCount[count];
+      const isBetter = g.winMode === 'lowest' ? (!cur || val < cur.val) : (!cur || val > cur.val);
       if(isBetter){
         const p = findPlayer(pid);
         const name = p ? p.name : (m.playerNames?.[pid] || '?');
-        record = {val, name, date: m.date};
+        recordsByCount[count] = {val, name, date: m.date};
       }
     });
   });
+  const recordCounts = Object.keys(recordsByCount).map(Number).sort((a, b) => a - b);
 
   let html = `<div class="back-row">
     <button class="btn ghost" data-action="back-to-grid">◂</button>
@@ -953,13 +956,17 @@ function renderGameDetail(gameId){
     <button class="btn ghost" data-action="edit-game" data-id="${g.id}" title="Editar">✏️</button>
   </div>`;
 
-  if(record){
-    html += `<div class="card section record-grid" style="grid-template-columns:1fr;">
-      <div class="record-tile">
-        <div class="lbl">Récord</div>
-        <div class="val tabular">${fmtNum(record.val)}</div>
-        <div class="who">${esc(record.name)} · ${fmtDate(record.date)}</div>
-      </div>
+  if(recordCounts.length){
+    const cols = recordCounts.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(110px, 1fr))';
+    html += `<div class="card section record-grid" style="grid-template-columns:${cols};">
+      ${recordCounts.map(count => {
+        const r = recordsByCount[count];
+        return `<div class="record-tile">
+          <div class="lbl">Récord a ${count} jugador${count === 1 ? '' : 'es'}</div>
+          <div class="val tabular">${fmtNum(r.val)}</div>
+          <div class="who">${esc(r.name)} · ${fmtDate(r.date)}</div>
+        </div>`;
+      }).join('')}
     </div>`;
   }
 
