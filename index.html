@@ -183,6 +183,9 @@ button{font-family:inherit;}
 .keypad-actions .btn.back{flex:0 0 34%;}
 .keypad-actions .btn.save{flex:1;}
 
+.rounds-toggle{display:flex; align-items:center; justify-content:center; gap:6px; width:100%; margin:10px 0 8px; padding:9px; border-radius:10px; border:1.5px solid var(--border); background:var(--surface); color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer;}
+.rounds-toggle .chev{display:inline-block; transition:transform .15s ease;}
+.rounds-toggle .chev.open{transform:rotate(180deg);}
 .score-table-wrap{overflow-x:auto; margin-bottom:6px;}
 table.score-table{border-collapse:collapse; width:100%; min-width:100%; font-size:13.5px;}
 table.score-table th, table.score-table td{padding:8px 10px; text-align:center; border-bottom:1px solid var(--border); white-space:nowrap;}
@@ -326,6 +329,7 @@ let cursor = 0;
 let keypadValue = '';
 let resultScreenMatchId = null;
 let finishSelectedIds = [];
+let roundsExpanded = false;
 
 let setupSelectedGameId = null;
 let setupWinModeOverride = null;
@@ -578,6 +582,7 @@ function handleLiveMatchChange(){
     cursor = (live.entries || []).length;
     keypadValue = '';
     finishSelectedIds = [];
+    roundsExpanded = false;
   }
   if(!live) resultScreenMatchId = resultScreenMatchId; // preserved until user leaves results screen
   const wasLive = !!liveMatch;
@@ -605,30 +610,42 @@ document.addEventListener('visibilitychange', () => {
 
 /* Short confirmation beep after saving a score. Web Audio API, no asset file needed;
    fails silently if the browser blocks audio before any user gesture. */
-let sharedAudioCtx = null;
-async function playSaveSound(){
+const SAVE_SOUND_SRC = 'data:audio/wav;base64,UklGRrQbAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YZAbAAAAABIARwCYAPoAYQG8Af8BGgIEArYBLgFxAIn/g/5y/W38ifve+oD6fPre+qf70vxR/g4A8QHYA6IFKgdRCPwIFwmVCHcHxgWYAw0BTP6B+934kPbH9KjzTvPI8xj1Mff3+UP94ACUBCIISAvPDYMPQBDwD44OKAzfCOIEcADS+1P3Q/Pq74ntTuxZ7LLtTPAE9KT44v1oA9sI3g0XEjcVBBdUFxgWXBNEDw8KDQSj/Tr3QPEf7DToyuUR5SLm8+he7SHz3/kqAYgIeg+HFUEaUR14HpkduRoAFrQPPQgTAMP32e/g6Ffjo98N3rrequGz5oftufXA/gII4hDCGBYfaCNmJeIk2yF8HBgVJwxBAg34PO565Wbegdkq15PXwNqE4IToO/IH/SwI6hKDHEokrilKLOUreyg+IpIZBg9PAzj3k+sw4cvY/tI60LnQfdRO277kLvDZ/OIJZRaBIWwqgTBLM40ySi7EJnUcDhBlAmv0FudY2wfS0MstyVbKQs+k1/DiY/AS//kNDxxSKOMxDDhWOo04xjJeKfUcYQ6m/tvuHOB409nJ9MM/wuLEustW1v/jxPONBCwVXCToMP45+D5+P4c7WzOPJ/gYoAix913nzNgHzeTE98CHwYjGoM8n3DnrwvuUDHwcVyopNSo83T4OPeI2yCx7H+8PRP+q7lPfWdKqyPrCr8HixFbMgteW5Y/1RAaCFhslATFYOYc9Pz2HOLcvcyOgFFEEt/MF5F/Wxsv8xIHCgsTZyg/VZeLi8WECsRKeIRIuIjcmPMA85TjfMEMl7hbtBm/2qebE2MbNf8Z3w+fEs8pu1F3hjvDeABoRDSCeLNw1GTvzO1o4kjAwJQ0XNwfd9jTnaNmAzkzHVcTTxanLZtVR4nDxogGxEWggriyXNXg69DoDN/AuWCMaFUkFGPW85V/YA85vxyLFSMe3zfHXMeV19JMEVhSKIhsuKjYaOp85wzTlK7MfGhE4AULxcOLj1ZDMLMcixoTJD9Ew3Azqk/mSCdMYKCaMMDM3mzmVN0kxNCceGgcLHPuV66XdX9KjygfH1Mf4zA7WYeL78LsAaRDNHsoqcTMWOF84RTQcLIUgahLjAifzb+Th13nO8ci5x+fKPNIk3cPqCvrDCbUYsiW3L/k1/TeYNf0usiSFF4EI1vjA6W7c79EWy27IKsop0O7ZteZ69Q8FOxTHIaIs7jMYN+A1YDAIJ5YaCgyN/Fntpt+M1O3MZck7yl3PY9iR5O/yVQKHEU0fjSpfMiQ2jTWoMNsn2hufDU/+Je9c4Q7WJ85IysLKic872CPkSPKGAaEQXx6iKYExWjXbNBEwXyd7G14NL/4o74bhY9aozvfKnMuJ0FfZS+Vs85ACfBH0Ht8pWDHBNNUzpi6jJYoZWgs//HftOeCe1YXOg8vXzGXSt9sG6E72XwX7E+sgHSu5MTM0VzJNLJYiAhacB5n4Nuqp3fvT+80qzKzOTNV832Hs5/rVCe0XASQNLVAyWTMTMMQoCx7OECsCXvOk5Sba3NF3zVbNe9GN2dvkcvIpAcUPBx3QJzcvnTK3MZkstSPKF94JH/vO7CLgMNbQz43Nls/A1YPfCexB+vEI2xbMIsEr9DD1Ma0uZyfBHKcPOAGz8lXlRtp50pjO+c6U0wHchuck9a4D5BGKHoooBS9tMY4vkSn8H6QTmwUa92Lppd3m1OnPG8+P0vfZrOTA8Q4AVw5dG/slRi2aMK0vlirGIQMWVgjz+RrsBOC/1hzRmc9X0hjZQ+Pz7wn+RwxtGVIk/yvJL1ovvCpYIu4Wfwk++2vtQeHU1/rRNtCw0jDZIOOf75D9swvJGKYjVCsjL70uKyrYIYEWKgkH+1jtV+EZ2HDS3dCE0yjaL+Sy8JL+jwxnGfMjQSuoLtot7ChOIMkUZgde+fHrWOCf14/SnNHd1AXcbeYk8wIBxQ4tGxolpis4LpYs5SasHcERPARY9ljpbd6W1onSpNLk1ube7en29s8ENBLrHeAmQSyRLbIq5yPSGV8Ntf8V8sHl29tN1bDSQtTe2f3iyO4n/N0JphZUIegosSxULNonsB+XFJcH6PnM7HzhB9k01HfT39Yc3oDoE/WmAvcPxxv7JLgqdCwGKqoj+RnbDXMABvPT5gDdedbb02XV79r2453vzfxFCsMWGCFKKK0r8CojJr4dihKYBSP4cOuy4O/Y49Tv1BHZ5eCr6134xAWdEqwd5iWAKg0rficsIMoVVgkC/BLvxOMt2x7WE9Ul2AffEulM9YkChg8BG+AjSym7Kg8ohyHHF78Lmv6Z8QDm7Nw+14LV4dch3qbnhPOUAJINPBlxIkwoPCoSKAQiqRjrDPD/+PJJ5wXeFNgI1hXYBt5H5/Dy3P/HDHAYsSGkJ7QprSfDIYsY7QwNADHzmedr3ozYkNap2KDe4Od+81MAHg2aGKUhWycsKeom0CB5F9ELAv9O8vnmI96r2BzXndnt32zpJvXxAYgOqRk5Il4nlCi+JSUfcRWcCdb8YvCC5UzdkdjK1wrb/uHy6+f3qATuEH4bRyODJ8QnBCSmHGcSUAaa+YztXuMW3HHYzNgd3fTkhu+/+2MIKhTjHZIkiid9JokhLhlGDu4BaPX46cngy9qY2GvaEeD46Df0pQABDQQYkCDFJRwncSQLHpMUAgmI/Gzw7eUd3svZZ9n83CnkMu4N+oIGSBIoHB4jcybPJUQhShm1Dp0CRfbx6s7hztuQ2U/b3OCi6bj09wAZDdwXICALJRkmMCOcHBATiQc9+3PvZuUj3mzapNrD3lzmovCB/LoIBhQ1HVIjuCUoJMweNRZLCzT/NfOT6GvgmNue2pTdLOSx7SP5SgXgEKoanyEEJX0kGSBPGPQNIQIY9h/rYOLJ3PLaC93c4sXr0/bXAosOrxgvID4kbSS5IIcZnQ8KBAz46+zY48vdatv13ELivuqA9V8BFg1hFyYfkCMlJNUg/hlbEPgEEPnp7brkft7j2y/dP+KF6hz13ACDDMsWmB4SI70jhyDJGUEQ9wQn+Rju/uTY3k/cq93D4gvrmfVGAc4M7BaGHsgiOyPUH/IYVg8PBFr4fu2t5N3estxp3s/jTez09pUC6w22F+IepCKUIrQechebDUcCtvYu7Nnjpd4i3Xzfb+VS7ij5vQTJDxEZjh+JIqwhER08FQwLpf9L9EHqp+JU3sTdBuG85yfxN/ywB0oS1hpeIEYiViDHGjkSowc0/Dbx4+dI4SPezd4z49bq2PQYAFQLRRXOHBUhnyFdHq4XVA5eAwr4n+1M5QDgV95+4Dfm2+5u+b0EgA99GLAeYyFJIIMbnRN9CUz+T/PH6cviJt9C3xzjQuri8+L+/wn1E58bHiDsIPQdjhd1DrYDjvhD7gTmxeAf30Hh7uZ87+75EAWbD1YYPx6pIEwfUhpPEi8IIf1q8knpzOKz31ngq+Qo7PD14ACzCygVJBzZH9cfIRwmFbUL6gAH9lDs6OSs4BngQePE6d/ygf1pCFQSFhrHHtwfNB0fF1YO4AP5+Oju3ObH4ULgeeIq6Knw9PrTBQAQSBivHZQfvR1jGCgQBgYy+/HwfOjS4p/gJeI15zXvMvn5A0YO3Ra6HCsf5h0RGUIRZwet/FvyrOmq4wzhIOLH5nDuMPjcAi8N6hUDHMAeyx1FGbgRDAht/R7zX+o85HLhVeLK5kfu5fd5Ar4MeBWYG2Iefx0NGZUR/wd1/TzzkeqB5MfhuOI157LuR/jJAvIMhRV5GxQeBh1wGOIQRwfO/LryR+p85A/iSuMG6K/vVPnGA8ANCRadG84dVxxoF5sP5wV9+6Lxjuk+5FniGuRI6UHxCPtoBRwP8RbvG3odYRvoFbwN4AOM+Qfwf+jh47/iPeUL63DzYv2jB/AQIBhPHPgcCBrcEzoLNAEM9wPuOueJ42bj1OZl7Uf2XABkCh0TbxmSHCAcKhguEQ0I7v0S9Lnr7eVo43vkA+lt8Mr57AONDXcVqxqCHMEaoBXHDTMEG/rE8Fvp0eS44zPm8Os29Pj9+Af0EMcXlBvhG6QYRxKaCbj/4PVV7S3nLuS75MHovO/I+LwCVQxYFMAZ3RtqGpgVBA6nBLX6c/EQ6n7lVOS25lXsefQW/u4HvxBnFwsbNBvdF3QRzggJ/2b1I+1R57DkluXl6Q3xIvr1A0QN2RS5GUMbRRkCFCgMvQL6+CLwXemJ5SflQuhy7ur2jAAbClYSKxjZGgUazhW/DsYFD/zd8mbrouYx5UHnj+xm9MD9YgcLEJcWKhpOGv0WqRAmCJT+NPVC7crnguW55kPriPKS+y0FGA4kFWQZSBqzF/wR5wmEABP30u7b6PXlheZ16j/x/fmEA5EM8ROoGBcaDRjQEhQL4AFw+ATwu+lt5ojmCup58Pr4ZwKBCw4TDBjSGSIYNxO7C64CSPnL8Fvq1Oaw5vHpKfCA+NYB6wqGEp8XiRkCGD4T5AvxApz5JfGy6iLn7+Yg6kXwifjNAdEKWxJmF0QZtBftEpcLrwJu+RLxwepV50XnkurJ8BH5RwItC4oSXRf/GDgXRRLVCuwBw/iZ8I3qcue050rrtvEV+kAD+AsJE3sXshiFFkARnQmqAKP3xe8k6ojnS+hT7BDzlPuxBCcNyROuF0sYjRXVD+4H8P4a9qbum+ms5x3pu+3g9I/9kQaoDrQU3RezFz4U+A3CBcL8N/RT7Qzp+udC6pLvLfcAANEIZBCrFegXyxZ+EpsLGgMt+hLy7uuc6JTo1uvt8fz54AJbCzsSiBaoF3IVOBC1CPv/RPfK753qduij6fnt2vRN/R4GEA4CFB4X8RaFE1QNQgVz/Cf0je2T6croTuvD8GH4EgGbCcIQhRU1F5YV4hDICUkBoPgF8ZDrCenM6bvtR/R+/DMFKA03E4QWlRZpE3QNkgXn/K/0Gu4a6kHprusI8Yj4GQF/CYUQJxW6FgUVSBAyCcoASPjl8LTrdOl46pruQPV0/QIGsA1gEz4W4BVWEiIMLQSf+7bzme0r6uzp5Oyl8lb61wLtCmgRVxUoFrsTbQ4EB5j+YvaX7zTr3+nI66fwxfcVAGAIbw83FAYWmBQjEFEJIQHK+ITxYuwm6iLrMu+79cb9IgaVDQQToxUOFVwRGgs2A9r6RPOS7Z3q1eow7i707PtCBPQL3hEeFToVLhJuDNYEifzC9KnuKOvD6ontEPOD+sUCnArbEJMUNhWtEloNCAbS/fH1lO+v69fqLO1T8of5sAGXCQsQFBQWFe0S6g3RBrT+yvZG8CPsAOsI7ezx7/gBAeoIeA+uE+gU+BIqDjgHMf9L97nweewy6xLt0vG4+LYAlwgnD2gTtBTZEiAOQgdL/3L36PCu7GfrRu3/8dv4zACbCBgPRBN8FJIS0A3yBgb/QvfX8MLsoeuh7XPyWPlAAfUISA8/Ez8UIRI5DUkGZP7A9ovwuuzj6yjuLfMs+g8CnwmwD1IT9ROCEVkMSQVp/fH1C/Cg7Djs4u409Fn7NAOPCkMQbhOSE6oQKwvvAxr84fRn74Xsruzb74313/yrBLsL9BCEEwYTjQ+mCT4Cfvqd87Due+xW7SDxP/e8/mkGEw2sEX0TPBIcDsUHNgCh+Djy/O2a7EfuwPJQ+ewAYAiADlMSPxMeEUkMgwXg/ZT2yfBq7f7sl+/K9MP7ZgN9CugPyRKsEpcPBwrgAkb7b/Rx7xntxu1b8Ub3lP4ZBqMMJxHrEqcRkQ1QB+b/gfhS8lbuMO0Q76fzOPq0AegIrQ4TEpESEhD9CiUEpfyw9Wfwo+3W7ffwhfaY/QwFrgtrEIASlRHTDdUHlAA++QLz4u6K7TDvkfP0+VABdQg3DqkROxLVD90KIgS9/OL1rvD77TnuXPHj9uT9OwW2C0UQKxIXETkNMgcAAND4z/L47u3t2e9q9OH6KwIaCYgOkRG3EfMOuwnqAqL7E/VS8Cfu7u6F8lT4Zf+NBp8MmhDVER8QvgtuBTv+VPfe8cHugO4l8T/29vwsBK8Kag+VEdQQRw2HB4gAdfl685bvb+408Jv05/oJAtQIIw4VES0RZg44CYICY/sK9Ynwn+6f71zzNvkxACIH4AxzEEIRLA+LCiUEEP179oHx+O5O73Py3/eo/qgFswvDDyoRrA+IC3QFd/6992ryZe8v79Lx2vZt/WwEqwoaD/gQ9Q89DHMGlP/I+Dfz1e8y72vxH/Z//HUD0wmEDroQFhC0DCgHZgCV+d7zOvBJ7zTxpfXb+8MCMQkLDnwQGRD1DJkH8QAj+lf0jfBr7yLxZ/V8+1YCyAi1DUUQBxAHDcoHNgFw+qD0yPCR7zHxX/Vh+y0CmAiFDRoQ5Q/wDL4HNwF9+rj06fC6713xivWH+0cCogh7DfoPsg+vDHgH9gBL+qD08vDk76bx6PXr+6IC4giUDeUPbg9FDPgGdADf+V305vAW8A/yefaO/DoDVQnLDdMPFA+vCz0Gtf87+fTzzfBU8J3yQfdv/Q0E9AkYDr4PnA7nCkUFuP5m+G7zsPCo8FfzQ/iN/hUFtgpwDpkP/Q3nCRAEg/1o99Xym/Ae8Uf0hPnn/0wGkQvFDlcPLA2pCJwCGvxL9jryn/DE8XT1Bvt5AacHdQwHD+gOHQwnB+oAhvof9azxzfCp8un2yvw8AxkJUQ0iDzoOwwpcBQH/1fj180PxOfHa86z4z/4mBY8KDQ4ADz0NFQlJA+j8F/fl8hTx+PFm9cD6CwElB/ELkA6KDt8LDQfzALD6ZvUL8jvxHPNW9yP9cwMhCSMNvg6oDRQKqQRn/nH43vOE8dLxt/St+cr/7gX7CgMOeQ5HDNUH9AG6+0r2pPJ08fDy1PZm/J8CXAiNDG4OpA1YCiQFAP8M+WL03/H48an0cvlv/4UFlQqtDT0OKgzXBxEC6/uI9ujyt/Et8wT3hfypAk0IZQwuDlMN/gnNBLv+5fhk9A/yU/Ik9fv58P/lBcAKmA3kDZgLIgdXAU/7KPbb8gTyzfPe93T9ggPnCJ4M9w2wDAcJrQOl/Q/4+fMn8vHyMPZH+z8B+gZjC6YNVA2ACrAF0f/7+Ur1oPJ+8ur0bvkv/xUFBAoMDZoNlQteB8IB1Pux9lTzYPIC9Ov3XP1LA5kIQwyWDVMMuAh1A4v9Gvgs9IHyafO49sv7qgE3B2ELXQ3LDMYJ5AQV/3P5FPXO8hDzzPV9+joA6wV3CgANCg2SChMGagCv+vv1NvPo8h/1bfn//sAElgmRDB8NJAsEB4oBx/vV9qrz4vKk9Jj4+v29A8cIGwwXDYkLvgd1ArT8l/ce9PXyVPT39yr95gISCKsL/QzIC0cIKwN0/Tz4ifQU8yT0hfeM/D4CfwdHC9oM6QulCLADBf6++OT0OfMO9Dv3IPzEAQ8H9gq1DPUL2wgFBGj+G/kr9V3zDfQX9+H7eAHFBrsKkgztC+8ILgSc/lH5WvV+8xz0E/fO+1sBogaYCnMM1wviCCsEo/5h+XH1mvM69DD35ftqAaUGjQpaDLILtgj/A3/+TPlw9bHzZvRs9yb8pAHNBpgKRQx+C2sIqgMv/hP5WvXF86P0x/eQ/AgCFge3CjEMOAv+BysDt/25+DP12vPz9EX4JP2UAn4H5QoZDNwKbweDAhj9RPgA9fbzW/Xm+OD9RQMACBwL9wtmCroGswFV/Lf3yPQh9OL1sPnF/hgElQhTC8MLzgncBbkAdPsb95T0YfSM9qT60v8HBTUJgQtzCw8J0QSa/3j6efZu9ML0YvfF+wMBDAbWCZsL/wohCJkDV/5s+d31Y/RN9Wn4FP1WAh0HawqUC1oK/wY0Avb8WvhT9YD0Dfan+ZD+wgMtCOYKXgt8CaQFowCC+1D37PTT9Az3H/syADsFLQk1C+oKWwgQBO/+CPpf9rn0a/VR+M/89QGzBgkKSAssCvEGRQIh/Zj4nPXM9FT24Pmz/soDFQiuCgoLFwk8BUoAS/tJ9xz1OPWX97n7vwCdBUsJBAtsCqMHQAMx/oP5NPb29Az2OvnV/eICVAc4CvQKXwnRBQkBC/zk93X1QfVT9zv7IgACBdEIwQppCtwHpQOr/vr5kfYq9RD2EvmN/YoC/QbyCcgKUwnjBTIBQ/wg+Kv1bPVt90P7GQDpBKwIkwo4Cq4HgAOV/vj5p/ZX9U/2WvnR/b4CEwfjCZMK/wh9Bc4A9fv797v1sfXe98r7nABLBdYIeQraCRwH1gL3/Yj5f/aF9c32Evqd/nMDiQf+CUkKWgieBOT/MPuJ97j1Ifav+NH8ogEYBjoJWwo8CRwGqQHc/L/4NvbP9aD3Qvvs/5gERAghCskJTwc+A3r+C/rr9sf13/b1+Vz+HQMvB64JDgo7CJsE+/9c+8T3+vVj9uj4+vy0AQ4GEgkYCuUIvwVWAaT8sPhY9iL2F/jJ+2gA7gReCPQJWAmsBokC2P2i+dX2D/Z798r6Pv/bA50HrwmcCWgHkAPx/o76Yvcf9g73+fk5/twC3AZVCbsJ9gdtBOr/bPv190j2xvZS+Vr99wEjBvAIvglfCCIFwQA3/IX4gfad9tH4ofwvAXkFiQiuCagIsgV2Aej8DfnB9on2cfgL/IYA4wQlCJIJ2AghBgkCf/2F+QL3hvYt+Jb7/f9jBMsHcAnzCHIGfAL5/ez5P/eO9gD4QPuT//wDfgdNCQAJqQbQAlb+Pfp095z25vcH+0f/sANCBywJAAnIBgYDlv54+p73rvbd9+f6Gv9+AxcHEAn3CNMGIAO4/pz6vPfB9uP34foJ/2gD/wb6COcIygYeA77+qPrN99T29/fy+hX/bAP5BusI0AitBgMDqP6e+tH36fYY+Br7PP+JAwUH4QixCH4GzQJ4/n36y/f+9kf4Wft+/78DIQfcCIkIOwZ9Ai3+Sfq69xj3hvix+9v/CwRLB9gIVQjjBRMCyf0E+qT3OPfX+CH8UQBtBH8H0QgUCHQFjwFP/bD5jPdi9z35rPzgAOAEugfECMEH7ATxAMD8Uvl295z3uvlQ/YYBYQX2B6wIVwdJBDoAH/zu+Gj36fdR+hD+QgLrBS0IgQjUBooDbP9x+4z4avdQ+Af76/4OA3gGWQg/CDEGrQKI/rz6MviC99b43fvf/+YDAQdwCN4HbQWyAZL9B/ro97j3gPnU/OgAxAR8B2sIVweDBJwAkvxa+bn3E/hS+uz9AwKfBeEHQAilBnMDcP+P+8D4r/ed+FD7Iv8oA2sGIwjmB8MFPgIx/pT6RvjU91r5evxxAEwEHQc3CFUHrgTnAOv8rfn39zL4UPrN/dABYwWnBxEIhgZoA3n/qvvq+OL30vh/+0T/NANdBvkHpgd3BfUB+/1/+lv4E/i5+eb80gCLBCcHBQjuBicEXQB//Hz5EfiW+Or6fP5qAsEFsAe8B+QFnAKy/hr7tvgc+HH5YfwyAPcDwgbjBxUHigTiAAX94/lD+Iv4p/oU/vgBXwU=';
+let saveAudioEl = null;
+let saveAudioUnlocked = false;
+function getSaveAudio(){
+  if(!saveAudioEl){
+    saveAudioEl = new Audio(SAVE_SOUND_SRC);
+    saveAudioEl.preload = 'auto';
+  }
+  return saveAudioEl;
+}
+// Most mobile browsers only allow audio playback that started from (or very
+// close to) a real user gesture. We try to "unlock" playback on the very
+// first tap anywhere in the app, so later calls to playSaveSound() (which
+// also happen inside a click handler, but after other work may have run)
+// are reliably allowed to play.
+function unlockSaveAudio(){
+  if(saveAudioUnlocked) return;
+  saveAudioUnlocked = true;
+  const a = getSaveAudio();
+  const prevVolume = a.volume;
+  a.volume = 0;
+  const p = a.play();
+  if(p && p.then){
+    p.then(() => { a.pause(); a.currentTime = 0; a.volume = prevVolume; })
+     .catch(() => { a.volume = prevVolume; });
+  }else{
+    a.volume = prevVolume;
+  }
+}
+document.addEventListener('pointerdown', unlockSaveAudio, {once: true, passive: true});
+function playSaveSound(){
   try{
-    if(!sharedAudioCtx || sharedAudioCtx.state === 'closed'){
-      sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    const ctx = sharedAudioCtx;
-    // On mobile, resume() can take a moment to actually start the hardware.
-    // Scheduling against ctx.currentTime before it resolves uses a stale,
-    // frozen time, so the sound can be scheduled to already be over by the
-    // time audio actually starts (silent, no error). Await it first.
-    if(ctx.state === 'suspended') await ctx.resume();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, now);
-    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.09);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.16);
+    const a = getSaveAudio();
+    a.currentTime = 0;
+    const p = a.play();
+    if(p && p.catch) p.catch(() => { /* blocked by browser, ignore */ });
   }catch(e){ /* audio not available, ignore */ }
 }
 
@@ -825,29 +842,38 @@ function renderScoring(){
   </div>`;
   html += `</div>`; // cierra .scoring-pinned
 
-  html += `<div class="score-table-wrap"><table class="score-table"><thead><tr><th>Ronda</th>`;
-  m.playerIds.forEach(pid => {
-    const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || ''};
-    html += `<th>${p.icon}<br>${esc(p.name)}</th>`;
-  });
-  html += `</tr></thead><tbody>`;
-  for(let r = 0; r < numRounds; r++){
-    html += `<tr><td>${r + 1}</td>`;
-    for(let c = 0; c < n; c++){
-      const idx = r * n + c;
-      const has = idx < frontier;
-      const isCurrent = idx === cursor;
-      html += `<td class="cell ${has ? '' : 'empty'} ${isCurrent ? 'current' : ''}" ${has ? `data-action="jump-cursor" data-idx="${idx}"` : ''}>${has ? fmtNum(entries[idx]) : '–'}</td>`;
+  html += `<button class="rounds-toggle" data-action="toggle-rounds">
+    <span>${roundsExpanded ? 'Ocultar rondas' : `Ver rondas (${numRounds})`}</span>
+    <span class="chev ${roundsExpanded ? 'open' : ''}">▾</span>
+  </button>`;
+
+  if(roundsExpanded){
+    html += `<div class="score-table-wrap"><table class="score-table"><thead><tr><th>Ronda</th>`;
+    m.playerIds.forEach(pid => {
+      const p = findPlayer(pid) || {name: m.playerNames?.[pid] || '?', icon: m.playerIcons?.[pid] || ''};
+      html += `<th>${p.icon}<br>${esc(p.name)}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+    for(let r = 0; r < numRounds; r++){
+      html += `<tr><td>${r + 1}</td>`;
+      for(let c = 0; c < n; c++){
+        const idx = r * n + c;
+        const has = idx < frontier;
+        const isCurrent = idx === cursor;
+        html += `<td class="cell ${has ? '' : 'empty'} ${isCurrent ? 'current' : ''}" ${has ? `data-action="jump-cursor" data-idx="${idx}"` : ''}>${has ? fmtNum(entries[idx]) : '–'}</td>`;
+      }
+      html += `</tr>`;
     }
-    html += `</tr>`;
+    html += `<tr class="total"><td>Total</td>`;
+    m.playerIds.forEach(pid => { html += `<td>${fmtNum(totals[pid] || 0)}</td>`; });
+    html += `</tr></tbody></table></div>`;
   }
-  html += `<tr class="total"><td>Total</td>`;
-  m.playerIds.forEach(pid => { html += `<td>${fmtNum(totals[pid] || 0)}</td>`; });
-  html += `</tr></tbody></table></div>`;
 
   viewEl.innerHTML = html;
-  const cur = viewEl.querySelector('.cell.current');
-  if(cur) cur.scrollIntoView({block: 'nearest', inline: 'nearest'});
+  if(roundsExpanded){
+    const cur = viewEl.querySelector('.cell.current');
+    if(cur) cur.scrollIntoView({block: 'nearest', inline: 'nearest'});
+  }
 }
 
 /* Games without scoring (e.g. "gana quien acaba antes"): no keypad, just tap
@@ -931,6 +957,7 @@ function computeLeaderboard(matchList){
       icon: p ? p.icon : (fallback ? fallback.playerIcons[pid] : '🙂'),
       wins: stats[pid].wins,
       played: stats[pid].played,
+      pct: stats[pid].played ? Math.round((stats[pid].wins / stats[pid].played) * 100) : 0,
     };
   }).sort((a, b) => b.wins - a.wins || b.played - a.played);
 }
@@ -953,9 +980,9 @@ function computeCurrentStreak(matchesDesc){
 }
 function leaderboardTableHtml(list){
   if(!list.length) return `<p class="hint">Aún no hay partidas registradas.</p>`;
-  let html = `<table class="leader-table"><thead><tr><th>Jugador</th><th class="num">Victorias</th><th class="num">Partidas</th></tr></thead><tbody>`;
+  let html = `<table class="leader-table"><thead><tr><th>Jugador</th><th class="num">Victorias</th><th class="num">Partidas</th><th class="num">% Victorias</th></tr></thead><tbody>`;
   list.forEach((row, i) => {
-    html += `<tr><td class="${i === 0 && row.wins > 0 ? 'rank-1' : ''}">${row.icon} ${esc(row.name)}</td><td class="num tabular">${row.wins}</td><td class="num tabular">${row.played}</td></tr>`;
+    html += `<tr><td class="${i === 0 && row.wins > 0 ? 'rank-1' : ''}">${row.icon} ${esc(row.name)}</td><td class="num tabular">${row.wins}</td><td class="num tabular">${row.played}</td><td class="num tabular">${row.pct}%</td></tr>`;
   });
   html += `</tbody></table>`;
   return html;
@@ -1486,6 +1513,10 @@ async function handleAction(action, el, ev){
       break;
     case 'key-sign':
       keypadValue = keypadValue.startsWith('-') ? keypadValue.slice(1) : ('-' + keypadValue);
+      renderScoring();
+      break;
+    case 'toggle-rounds':
+      roundsExpanded = !roundsExpanded;
       renderScoring();
       break;
     case 'save-score': {
