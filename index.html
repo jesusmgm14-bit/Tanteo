@@ -198,6 +198,15 @@ table.score-table tr.total td{border-top:2px solid var(--text); border-bottom:no
 .match-header .ic{font-size:26px;}
 .match-header .actions{display:flex; gap:6px;}
 
+/* Panel de partida en vivo (cabecera, ronda/jugador, marcador y calculadora):
+   se queda fijo arriba al hacer scroll, para que el historial de rondas
+   pueda crecer hacia abajo sin que la calculadora deje de estar a mano. */
+.scoring-pinned{
+  position:sticky; top:0; z-index:6;
+  background:var(--bg); padding-top:6px; margin:-6px -2px 0; padding-left:2px; padding-right:2px;
+  box-shadow:0 8px 10px -8px rgba(15,18,13,.18);
+}
+
 .game-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
 .game-card{cursor:pointer; text-align:left;}
 .game-card .ic{font-size:30px; display:block; margin-bottom:6px;}
@@ -290,7 +299,7 @@ table.leader-table td.num, table.leader-table th.num{text-align:right; font-fami
 (function(){
 "use strict";
 
-const GAME_EMOJIS = ['🎲','♟️','🃏','🀄','🎯','🧩','🎮','🕹️','🏆','🐉','🦑','🚂','🏰','⚔️','🐺','🐒','🌾','🎳','🧙','🕵️','🚀','🏴‍☠️','🐴','💎','🃟','❤️','🔢'];
+const GAME_EMOJIS = ['🎲','♟️','🃏','🀄','🁡','🎯','🧩','🎮','🕹️','🏆','🐉','🦑','🚂','🏰','⚔️','🐺','🐒','🌾','🎳','🧙','🕵️','🥷','🚀','🏴‍☠️','🐴','💎','🃟','❤️','🔢'];
 const PLAYER_EMOJIS = ['🙂','😎','🤓','🥸','🦊','🐼','🐸','🐧','🦁','🐯','🐻','🦄','👑','🧑‍🚀','🧑‍🎤','🧑‍🍳','🥷','🧝','🧛','🐙','🐢','🦅','🐝','🌵','🌈'];
 
 const DEFAULT_GAMES = [
@@ -597,22 +606,29 @@ document.addEventListener('visibilitychange', () => {
 /* Short confirmation beep after saving a score. Web Audio API, no asset file needed;
    fails silently if the browser blocks audio before any user gesture. */
 let sharedAudioCtx = null;
-function playSaveSound(){
+async function playSaveSound(){
   try{
-    if(!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(!sharedAudioCtx || sharedAudioCtx.state === 'closed'){
+      sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
     const ctx = sharedAudioCtx;
-    if(ctx.state === 'suspended') ctx.resume();
+    // On mobile, resume() can take a moment to actually start the hardware.
+    // Scheduling against ctx.currentTime before it resolves uses a stale,
+    // frozen time, so the sound can be scheduled to already be over by the
+    // time audio actually starts (silent, no error). Await it first.
+    if(ctx.state === 'suspended') await ctx.resume();
+    const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.09);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.09);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
     osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.16);
+    osc.start(now);
+    osc.stop(now + 0.16);
   }catch(e){ /* audio not available, ignore */ }
 }
 
@@ -762,6 +778,7 @@ function renderScoring(){
   const numRounds = Math.max(1, Math.ceil(Math.max(frontier, cursor + 1) / n));
 
   let html = '';
+  html += `<div class="scoring-pinned">`;
   html += `<div class="match-header">
     <div class="who"><span class="ic">${m.gameIcon}</span><h2>${esc(m.gameName)}</h2></div>
     <div class="actions">
@@ -806,6 +823,7 @@ function renderScoring(){
     <button class="btn back" data-action="cursor-back" ${cursor === 0 ? 'disabled' : ''}>◂ Atrás</button>
     <button class="btn primary save" data-action="save-score">Guardar y siguiente ▸</button>
   </div>`;
+  html += `</div>`; // cierra .scoring-pinned
 
   html += `<div class="score-table-wrap"><table class="score-table"><thead><tr><th>Ronda</th>`;
   m.playerIds.forEach(pid => {
@@ -837,6 +855,7 @@ function renderScoring(){
 function renderFinishScreen(){
   const m = liveMatch;
   let html = '';
+  html += `<div class="scoring-pinned">`;
   html += `<div class="match-header">
     <div class="who"><span class="ic">${m.gameIcon}</span><h2>${esc(m.gameName)}</h2></div>
     <div class="actions">
@@ -855,11 +874,13 @@ function renderFinishScreen(){
     const sel = finishSelectedIds.includes(pid);
     html += `<button class="chip ${sel ? 'selected' : ''}" data-action="finish-toggle-winner" data-id="${pid}">
       <span class="ic">${p.icon}</span>${esc(p.name)}${sel ? ' 🏆' : ''}
+      <span class="edit-pencil" data-action="edit-player" data-id="${pid}" title="Editar">✏️</span>
     </button>`;
   });
   html += `</div>`;
 
   html += `<button class="btn primary block" data-action="finish-order-match" ${finishSelectedIds.length ? '' : 'disabled'}>Finalizar partida</button>`;
+  html += `</div>`;
 
   viewEl.innerHTML = html;
 }
@@ -1265,7 +1286,7 @@ function renderRetroModal(){
     <div class="chip-row">`;
   players.forEach(p => {
     const sel = s.selectedPlayerIds.includes(p.id);
-    html += `<button class="chip ${sel ? 'selected' : ''}" data-action="retro-toggle-player" data-id="${p.id}"><span class="ic">${p.icon}</span>${esc(p.name)}</button>`;
+    html += `<button class="chip ${sel ? 'selected' : ''}" data-action="retro-toggle-player" data-id="${p.id}"><span class="ic">${p.icon}</span>${esc(p.name)}<span class="edit-pencil" data-action="edit-player" data-id="${p.id}" title="Editar">✏️</span></button>`;
   });
   html += `</div>
     <div class="quick-add-row">
